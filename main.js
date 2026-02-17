@@ -9,12 +9,12 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setAnimationLoop( animate );
 document.body.appendChild( renderer.domElement );
 
-const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+const geometry = new THREE.SphereGeometry( 1, 32, 32 );
 const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-const cube = new THREE.Mesh( geometry, material );
-scene.add( cube );
+const sphere = new THREE.Mesh( geometry, material );
+scene.add( sphere );
 
-camera.position.z = 5;
+camera.position.z = 0;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 camera.position.set(0, 5, 10); // Where the camera is.
@@ -22,8 +22,8 @@ controls.target.set(0, 5, 0); // Where the camera is looking
 
 function animate() {
 
-	cube.rotation.x += 0.01;
-	cube.rotation.y += 0.01;
+	sphere.rotation.x += 0.01;
+	sphere.rotation.y += 0.01;
 
 	renderer.render( scene, camera );
 
