@@ -9,21 +9,38 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setAnimationLoop( animate );
 document.body.appendChild( renderer.domElement );
 
-const geometry = new THREE.SphereGeometry( 1, 32, 32 );
-const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-const sphere = new THREE.Mesh( geometry, material );
-scene.add( sphere );
+function generateSphereGeometries(numSpheres, radius, scale) {
+    const geometries = [];
+    let curRadius = radius;
+    for (let i = 0; i < numSpheres; i++) {
+        const geometry = new THREE.SphereGeometry(curRadius, 32, 16);
+        geometries.push(geometry);
+        curRadius *= scale;
+    }
+    return geometries;
+}
 
-camera.position.z = 0;
+const sphereGeometries = generateSphereGeometries(11, 1, 1.2);
+const sphereMeshes = [];
+let xOffset = 0;
+sphereGeometries.forEach(geometry => {
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const sphere = new THREE.Mesh(geometry, material);
+    const r = geometry.parameters.radius;
+    xOffset += r + 1;
+    sphere.position.x = xOffset;
+    xOffset += r + 1;
+    sphereMeshes.push(sphere);
+    scene.add(sphere);
+});
+const totalWidth = xOffset;
+sphereMeshes.forEach(sphere => { sphere.position.x -= totalWidth / 2; });
 
 const controls = new OrbitControls(camera, renderer.domElement);
 camera.position.set(0, 5, 10); // Where the camera is.
-controls.target.set(0, 5, 0); // Where the camera is looking 
+controls.target.set(0, 0, 0); // Orbit around world origin
 
 function animate() {
-
-	sphere.rotation.x += 0.01;
-	sphere.rotation.y += 0.01;
 
 	renderer.render( scene, camera );
 
