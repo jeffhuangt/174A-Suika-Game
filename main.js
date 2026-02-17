@@ -20,11 +20,25 @@ function generateSphereGeometries(numSpheres, radius, scale) {
     return geometries;
 }
 
+const materials = [
+    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+    new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+    new THREE.MeshBasicMaterial({ color: 0x0000ff }),
+    new THREE.MeshBasicMaterial({ color: 0xffff00 }),
+    new THREE.MeshBasicMaterial({ color: 0xff00ff }),
+    new THREE.MeshBasicMaterial({ color: 0x00ffff }),
+    new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    new THREE.MeshBasicMaterial({ color: 0x888888 }),
+    new THREE.MeshBasicMaterial({ color: 0xff8800 }),
+    new THREE.MeshBasicMaterial({ color: 0x88ff00 }),
+    new THREE.MeshBasicMaterial({ color: 0x0088ff })
+];
+
 const sphereGeometries = generateSphereGeometries(11, 1, 1.2);
 const sphereMeshes = [];
 let xOffset = 0;
-sphereGeometries.forEach(geometry => {
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+sphereGeometries.forEach((geometry, index) => {
+    const material = materials[index];
     const sphere = new THREE.Mesh(geometry, material);
     const r = geometry.parameters.radius;
     xOffset += r + 1;
