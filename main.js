@@ -4,6 +4,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(5, 10, 5);
+scene.add(dirLight);
+
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setAnimationLoop( animate );
@@ -34,11 +40,18 @@ const materials = [
     new THREE.MeshBasicMaterial({ color: 0x0088ff })
 ];
 
+const textureLoader = new THREE.TextureLoader();
+
+const watermelonTexture = textureLoader.load('./textures/watermelon.jpg');
+watermelonTexture.colorSpace = THREE.SRGBColorSpace;
+
+const texturedMaterial = new THREE.MeshStandardMaterial({map: watermelonTexture});
+
 const sphereGeometries = generateSphereGeometries(11, 1, 1.2);
 const sphereMeshes = [];
 let xOffset = 0;
 sphereGeometries.forEach((geometry, index) => {
-    const material = materials[index];
+    const material = index === 10 ? texturedMaterial : materials[index];
     const sphere = new THREE.Mesh(geometry, material);
     const r = geometry.parameters.radius;
     xOffset += r + 1;
