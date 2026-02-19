@@ -18,6 +18,30 @@ function generateSphereGeometries(numSpheres, radius, scale) {
     return geometries;
 }
 
+// create a table 
+const tableWidth = 60;
+const tableDepth = 30;
+const tableThickness = 1.2;
+
+const tableGeo = new THREE.BoxGeometry(
+  tableWidth,
+  tableThickness,
+  tableDepth
+);
+
+const tableMat = new THREE.MeshStandardMaterial({
+  color: 0xf5d7b2,
+  roughness: 0.85,
+  metalness: 0.0,
+});
+
+const table = new THREE.Mesh(tableGeo, tableMat);
+
+// since spheres sit at y = 0, lower the table
+table.position.y = - (tableThickness / 2) - 8.0;
+
+scene.add(table);
+
 
 const sphereGeometries = generateSphereGeometries(11, 1, 1.25);
 const sphereMeshes = [];

@@ -49,15 +49,15 @@ export function setupScene() {
         return new THREE.Line(geometry, material);
     }
 
-    // Create axis lines
-    const xAxis = createAxisLine(0xff0000, new THREE.Vector3(0, 0, 0), new THREE.Vector3(5, 0, 0)); // Red
-    const yAxis = createAxisLine(0x00ff00, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 5, 0)); // Green
-    const zAxis = createAxisLine(0x0000ff, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 5)); // Blue
+    // // Create axis lines
+    // const xAxis = createAxisLine(0xff0000, new THREE.Vector3(0, 0, 0), new THREE.Vector3(5, 0, 0)); // Red
+    // const yAxis = createAxisLine(0x00ff00, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 5, 0)); // Green
+    // const zAxis = createAxisLine(0x0000ff, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 5)); // Blue
 
-    // Add axes to scene
-    scene.add(xAxis);
-    scene.add(yAxis);
-    scene.add(zAxis);
+    // // Add axes to scene
+    // scene.add(xAxis);
+    // scene.add(yAxis);
+    // scene.add(zAxis);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     camera.position.set(0, 5, 10); // Where the camera is.
