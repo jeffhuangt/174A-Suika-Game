@@ -26,32 +26,73 @@ function generateSphereGeometries(numSpheres, radius, scale) {
     return geometries;
 }
 
-const materials = [
-    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-    new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
-    new THREE.MeshBasicMaterial({ color: 0x0000ff }),
-    new THREE.MeshBasicMaterial({ color: 0xffff00 }),
-    new THREE.MeshBasicMaterial({ color: 0xff00ff }),
-    new THREE.MeshBasicMaterial({ color: 0x00ffff }),
-    new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    new THREE.MeshBasicMaterial({ color: 0x888888 }),
-    new THREE.MeshBasicMaterial({ color: 0xff8800 }),
-    new THREE.MeshBasicMaterial({ color: 0x88ff00 }),
-    new THREE.MeshBasicMaterial({ color: 0x0088ff })
-];
+// const materials = [
+//     new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+//     new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+//     new THREE.MeshBasicMaterial({ color: 0x0000ff }),
+//     new THREE.MeshBasicMaterial({ color: 0xffff00 }),
+//     new THREE.MeshBasicMaterial({ color: 0xff00ff }),
+//     new THREE.MeshBasicMaterial({ color: 0x00ffff }),
+//     new THREE.MeshBasicMaterial({ color: 0xffffff }),
+//     new THREE.MeshBasicMaterial({ color: 0x888888 }),
+//     new THREE.MeshBasicMaterial({ color: 0xff8800 }),
+//     new THREE.MeshBasicMaterial({ color: 0x88ff00 }),
+//     new THREE.MeshBasicMaterial({ color: 0x0088ff })
+// ];
 
 const textureLoader = new THREE.TextureLoader();
 
-const watermelonTexture = textureLoader.load('./textures/watermelon.jpg');
-watermelonTexture.colorSpace = THREE.SRGBColorSpace;
+const loadTextures = (path) => {
+    const tex = textureLoader.load(path);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
 
-const texturedMaterial = new THREE.MeshStandardMaterial({map: watermelonTexture});
+const fruitTextures = {
+    watermelon: loadTextures('./textures/watermelon.jpg'),
+    strawberry: loadTextures('./textures/strawberry.jpg'),
+    cherry: loadTextures('./textures/cherry.jpg'),
+    grape: loadTextures('./textures/grape.jpg'),
+    orange: loadTextures('./textures/orange.jpg'),
+    apple: loadTextures('./textures/apple.jpg'),
+    pear: loadTextures('./textures/pear.jpg'),
+    dekopon: loadTextures('./textures/dekopon.jpg'),
+    peach: loadTextures('./textures/peach.jpg'),
+    pineapple: loadTextures('./textures/pineapple.jpg'),
+    melon: loadTextures('./textures/melon.jpg'),
+}
+
+const fruitMaterials = Object.fromEntries(
+    Object.entries(fruitTextures).map(([name, tex]) => [
+      name,
+      new THREE.MeshStandardMaterial({ map: tex })
+    ])
+);
+
+const fruitOrder = [
+    'watermelon',
+    'strawberry',
+    'cherry',
+    'grape',
+    'orange',
+    'apple',
+    'pear',
+    'dekopon',
+    'peach',
+    'pineapple',
+    'melon'
+];
+
+// const texturedMaterial = new THREE.MeshStandardMaterial({map: watermelonTexture});
 
 const sphereGeometries = generateSphereGeometries(11, 1, 1.2);
 const sphereMeshes = [];
 let xOffset = 0;
 sphereGeometries.forEach((geometry, index) => {
-    const material = index === 10 ? texturedMaterial : materials[index];
+    const fruitName = fruitOrder[index] ?? 'no';
+    const material = fruitMaterials[fruitName];
+
+
     const sphere = new THREE.Mesh(geometry, material);
     const r = geometry.parameters.radius;
     xOffset += r + 1;
@@ -90,4 +131,3 @@ const zAxis = createAxisLine(0x0000ff, new THREE.Vector3(0, 0, 0), new THREE.Vec
 scene.add(xAxis);
 scene.add(yAxis);
 scene.add(zAxis);
-
