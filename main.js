@@ -3,9 +3,13 @@ import { setupScene } from './setupScene.js';
 import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
 
-
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
+
+
+const timer = new THREE.Timer();
+const fallingFruits = [];
+const GRAVITY = -25;
 
 function generateSphereGeometries(numSpheres, radius, scale) {
     const geometries = [];
@@ -40,6 +44,8 @@ const table = new THREE.Mesh(tableGeo, tableMat);
 // since spheres sit at y = 0, lower the table
 table.position.y = - (tableThickness / 2) - 8.0;
 
+const tableBox = new THREE.Box3();
+
 scene.add(table);
 
 
@@ -70,12 +76,63 @@ sphereMeshes.forEach(sphere => {
     createFaceDecals(sphere, sphere.userData.fruitName, faceMaterials, { yaw: 0 });
 });
 
+let nextFruitIndex = 0;
+
+function spawnFruit() {
+
+
+  const fruitName = fruitOrder[nextFruitIndex % fruitOrder.length];
+  nextFruitIndex++;
+
+  const radius = 1;
+
+  const geom = new THREE.SphereGeometry(radius, 32, 16);
+  const mat = fruitMaterials[fruitName];
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.userData.fruitName = fruitName;
+
+  mesh.position.set(
+    // spawn randomly for now
+    (Math.random() - 0.5) * 6,
+    10,
+    0
+  );
+
+  scene.add(mesh);
+
+  // add face decal
+  createFaceDecals(mesh, fruitName, faceMaterials, { yaw: 0 });
+
+  fallingFruits.push({ mesh, velocityY: 0, radius });
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') spawnFruit();
+  });
 
 function animate() {
 
-	renderer.render( scene, camera );
+    timer.update();
+
+    const dt = Math.min(timer.getDelta(), 0.033);
+
+    tableBox.setFromObject(table);
+    const tableTopY = tableBox.max.y;
+
+    // physics part
+    for (const f of fallingFruits) {
+      f.velocityY += GRAVITY * dt;
+      f.mesh.position.y += f.velocityY * dt;
+  
+      // collide with table top
+      if (f.mesh.position.y - f.radius <= tableTopY) {
+        f.mesh.position.y = tableTopY + f.radius;
+        f.velocityY = 0;
+      }
+    }
 
     controls.update();
+	renderer.render( scene, camera );
 
 }
 
