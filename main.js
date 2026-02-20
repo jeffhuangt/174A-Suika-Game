@@ -175,8 +175,8 @@ function spawnFruit() {
   }
 }
 
-renderer.domElement.addEventListener('pointerdown', () => {
-  spawnFruit();
+window.addEventListener('keydown', (event) => {
+  if (event.code === 'Space') spawnFruit();
 });
 
 function animate() {
