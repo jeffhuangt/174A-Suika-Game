@@ -140,7 +140,6 @@ function spawnFruit() {
 
   const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
-  nextFruitIndex++;
 
   const geometry = sphereGeometries[fruitIndex];
   const radius = geometry.parameters.radius;

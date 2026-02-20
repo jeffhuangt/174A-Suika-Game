@@ -35,11 +35,11 @@ export function merge({ scene,
 
     for (let i = 0; i < fallingFruits.length; i++) {
         const first = fallingFruits[i];
-        const firstName = A.mesh.userData.fruitName;
+        const firstName = first.mesh.userData.fruitName;
 
         for (let j = i + 1; j < fallingFruits.length; j++) {
         const second = fallingFruits[j];
-        const secondName = B.mesh.userData.fruitName;
+        const secondName = second.mesh.userData.fruitName;
 
         if (firstName !== secondName) continue;
 
