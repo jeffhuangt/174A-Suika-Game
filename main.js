@@ -78,12 +78,66 @@ sphereMeshes.forEach(sphere => {
   createFaceDecals(sphere, sphere.userData.fruitName, faceMaterials, { yaw: 0 });
 });
 
-let nextFruitIndex = 0;
+const planeHeight = 20;
+const planeLength = 25;
+const maxFruitIndex = 4;
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeHeight);
+
+let nextFruitIndex = Math.floor(Math.random() * maxFruitIndex);
+let previewMesh = null;
+
+function updatePreviewMesh() {
+  if (previewMesh) {
+    scene.remove(previewMesh);
+    previewMesh.geometry.dispose();
+    previewMesh.material.dispose();
+  }
+
+  const fruitName = fruitOrder[nextFruitIndex];
+  const geometry = sphereGeometries[nextFruitIndex];
+  const material = fruitMaterials[fruitName].clone();
+  material.transparent = true;
+  material.opacity = 0.5;
+
+  previewMesh = new THREE.Mesh(geometry, material);
+  previewMesh.position.set(0, 25, 0);
+  scene.add(previewMesh);
+
+  createFaceDecals(previewMesh, fruitName, faceMaterials, { yaw: 0 });
+}
+
+updatePreviewMesh();
+
+function onPointerMove(event) {
+  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+  const target = new THREE.Vector3();
+  raycaster.ray.intersectPlane(plane, target);
+
+  if (target) {
+    const limit = planeLength / 2;
+    target.x = Math.max(-limit, Math.min(limit, target.x));
+    target.z = Math.max(-limit, Math.min(limit, target.z));
+    target.y = 25;
+
+    if (previewMesh) {
+      previewMesh.position.copy(target);
+    }
+  }
+}
+
+window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
-  const maxIndex = 4;
-  const fruitIndex = Math.floor(Math.random() * (maxIndex + 1));
+  if (!previewMesh) return;
 
+  const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
   nextFruitIndex++;
 
@@ -94,12 +148,8 @@ function spawnFruit() {
   const mesh = new THREE.Mesh(geometry, mat);
   mesh.userData.fruitName = fruitName;
 
-  mesh.position.set(
-    // spawn randomly for now
-    (Math.random() - 0.5) * 6,
-    10,
-    0
-  );
+  // spawn at preview position
+  mesh.position.copy(previewMesh.position);
 
   scene.add(mesh);
 
@@ -107,6 +157,22 @@ function spawnFruit() {
   createFaceDecals(mesh, fruitName, faceMaterials, { yaw: 0 });
 
   fallingFruits.push({ mesh, velocityY: 0, radius });
+
+  // update next fruit
+  nextFruitIndex = Math.floor(Math.random() * 5);
+  updatePreviewMesh();
+
+  // snap to pointer
+  raycaster.setFromCamera(pointer, camera);
+  const target = new THREE.Vector3();
+  raycaster.ray.intersectPlane(plane, target);
+  if (target && previewMesh) {
+    const limit = planeLength / 2;
+    target.x = Math.max(-limit, Math.min(limit, target.x));
+    target.z = Math.max(-limit, Math.min(limit, target.z));
+    previewMesh.position.copy(target);
+    previewMesh.position.y = planeHeight;
+  }
 }
 
 renderer.domElement.addEventListener('pointerdown', () => {
