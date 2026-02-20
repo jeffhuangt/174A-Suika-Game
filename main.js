@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { setupScene } from './setupScene.js';
 import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
+import { merge } from './merge.js';
 
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
@@ -139,7 +140,6 @@ function spawnFruit() {
 
   const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
-  nextFruitIndex++;
 
   const geometry = sphereGeometries[fruitIndex];
   const radius = geometry.parameters.radius;
@@ -199,6 +199,8 @@ function animate() {
       f.velocityY = 0;
     }
   }
+
+  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
 
   controls.update();
   renderer.render(scene, camera);
