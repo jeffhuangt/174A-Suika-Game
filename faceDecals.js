@@ -22,12 +22,15 @@ export function createFaceDecals(sphereMesh, fruitName, faceMaterials, {
         sphereMesh,
         position,
         orientation,
-        new THREE.Vector3(size, size, size*0.12)
+        new THREE.Vector3(size, size, size * 0.12)
     );
 
     const decalMesh = new THREE.Mesh(decalGeo, faceMaterials[fruitName]);
     decalMesh.renderOrder = 999;
-    decalMesh.material.depthTest = false;
-    sphereMesh.parent?.add(decalMesh);
+    decalMesh.material.depthTest = true;
+
+    decalMesh.geometry.applyMatrix4(sphereMesh.matrixWorld.clone().invert());
+    sphereMesh.add(decalMesh);
+
     return decalMesh;
 }
