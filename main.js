@@ -106,9 +106,9 @@ function spawnFruit() {
   fallingFruits.push({ mesh, velocityY: 0, radius });
 }
 
-window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') spawnFruit();
-  });
+renderer.domElement.addEventListener('pointerdown', () => {
+  spawnFruit();
+});
 
 function animate() {
 
