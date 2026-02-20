@@ -12,14 +12,14 @@ const fallingFruits = [];
 const GRAVITY = -25;
 
 function generateSphereGeometries(numSpheres, radius, scale) {
-    const geometries = [];
-    let curRadius = radius;
-    for (let i = 0; i < numSpheres; i++) {
-        const geometry = new THREE.SphereGeometry(curRadius, 32, 16);
-        geometries.push(geometry);
-        curRadius *= scale;
-    }
-    return geometries;
+  const geometries = [];
+  let curRadius = radius;
+  for (let i = 0; i < numSpheres; i++) {
+    const geometry = new THREE.SphereGeometry(curRadius, 32, 16);
+    geometries.push(geometry);
+    curRadius *= scale;
+  }
+  return geometries;
 }
 
 // create a table 
@@ -52,20 +52,22 @@ scene.add(table);
 const sphereGeometries = generateSphereGeometries(11, 1, 1.25);
 const sphereMeshes = [];
 let xOffset = 0;
+let zIndex = -25;
 sphereGeometries.forEach((geometry, index) => {
-    const fruitName = fruitOrder[index] ?? 'no';
-    const material = fruitMaterials[fruitName];
+  const fruitName = fruitOrder[index] ?? 'no';
+  const material = fruitMaterials[fruitName];
 
-    const sphere = new THREE.Mesh(geometry, material);
+  const sphere = new THREE.Mesh(geometry, material);
 
-    sphere.userData.fruitName = fruitName;
+  sphere.userData.fruitName = fruitName;
 
-    const r = geometry.parameters.radius;
-    xOffset += r + 1;
-    sphere.position.x = xOffset;
-    xOffset += r + 1;
-    sphereMeshes.push(sphere);
-    scene.add(sphere);
+  const r = geometry.parameters.radius;
+  xOffset += r + 1;
+  sphere.position.x = xOffset;
+  xOffset += r + 1;
+  sphere.position.z = zIndex;
+  sphereMeshes.push(sphere);
+  scene.add(sphere);
 });
 const totalWidth = xOffset;
 sphereMeshes.forEach(sphere => { sphere.position.x -= totalWidth / 2; });
@@ -73,22 +75,23 @@ sphereMeshes.forEach(sphere => { sphere.position.x -= totalWidth / 2; });
 scene.updateMatrixWorld(true);
 
 sphereMeshes.forEach(sphere => {
-    createFaceDecals(sphere, sphere.userData.fruitName, faceMaterials, { yaw: 0 });
+  createFaceDecals(sphere, sphere.userData.fruitName, faceMaterials, { yaw: 0 });
 });
 
 let nextFruitIndex = 0;
 
 function spawnFruit() {
+  const maxIndex = 4;
+  const fruitIndex = Math.floor(Math.random() * (maxIndex + 1));
 
-
-  const fruitName = fruitOrder[nextFruitIndex % fruitOrder.length];
+  const fruitName = fruitOrder[fruitIndex];
   nextFruitIndex++;
 
-  const radius = 1;
+  const geometry = sphereGeometries[fruitIndex];
+  const radius = geometry.parameters.radius;
 
-  const geom = new THREE.SphereGeometry(radius, 32, 16);
   const mat = fruitMaterials[fruitName];
-  const mesh = new THREE.Mesh(geom, mat);
+  const mesh = new THREE.Mesh(geometry, mat);
   mesh.userData.fruitName = fruitName;
 
   mesh.position.set(
@@ -112,27 +115,27 @@ renderer.domElement.addEventListener('pointerdown', () => {
 
 function animate() {
 
-    timer.update();
+  timer.update();
 
-    const dt = Math.min(timer.getDelta(), 0.033);
+  const dt = Math.min(timer.getDelta(), 0.033);
 
-    tableBox.setFromObject(table);
-    const tableTopY = tableBox.max.y;
+  tableBox.setFromObject(table);
+  const tableTopY = tableBox.max.y;
 
-    // physics part
-    for (const f of fallingFruits) {
-      f.velocityY += GRAVITY * dt;
-      f.mesh.position.y += f.velocityY * dt;
-  
-      // collide with table top
-      if (f.mesh.position.y - f.radius <= tableTopY) {
-        f.mesh.position.y = tableTopY + f.radius;
-        f.velocityY = 0;
-      }
+  // physics part
+  for (const f of fallingFruits) {
+    f.velocityY += GRAVITY * dt;
+    f.mesh.position.y += f.velocityY * dt;
+
+    // collide with table top
+    if (f.mesh.position.y - f.radius <= tableTopY) {
+      f.mesh.position.y = tableTopY + f.radius;
+      f.velocityY = 0;
     }
+  }
 
-    controls.update();
-	renderer.render( scene, camera );
+  controls.update();
+  renderer.render(scene, camera);
 
 }
 
