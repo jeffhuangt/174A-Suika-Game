@@ -46,8 +46,8 @@ const table = new THREE.Mesh(tableGeo, tableMat);
 // since spheres sit at y = 0, lower the table
 table.position.y = - (tableThickness / 2) - 8.0;
 
-const tableBox = new THREE.Box3();
-
+const tableBox = new THREE.Box3().setFromObject(table);
+const tableTopY = tableBox.max.y;
 scene.add(table);
 
 function lathe(points, segments) {
@@ -113,17 +113,21 @@ export function makeCup({
     cupGeometry.computeVertexNormals();
 
     const cupMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
+        color: 0xe8f6ff,
         transmission: 1.0,
-        roughness: 0.06,
+        roughness: 0.02,
         metalness: 0.0,
         ior: 1.5,
-        thickness: wall * 2.0,
+        thickness: wall * 8.0,
         transparent: true,
+        opacity: 1.0,
         clearcoat: 1.0,
-        clearcoatRoughness: 0.03,
+        clearcoatRoughness: 0.01,
+        envMapIntensity: 1.5,
         side: THREE.FrontSide,
     });
+    cupMaterial.depthWrite = false;
+    cupMaterial.depthTest = true;
 
     const cup = new THREE.Mesh(cupGeometry, cupMaterial);
     cup.castShadow = true;
@@ -133,6 +137,8 @@ export function makeCup({
 }
 
 const cup = makeCup({ height: 30, wall:0.15, bottom: 0.25 });
+cup.renderOrder = 2;
+cup.position.set(-50, tableTopY + 0.01, 0);
 scene.add(cup);
 
 
@@ -269,10 +275,10 @@ function animate() {
 
   timer.update();
 
-  const dt = Math.min(timer.getDelta(), 0.033);
+  const dt = Math.min(timer.getDelta(), 1 / 30); //0.033);
 
-  tableBox.setFromObject(table);
-  const tableTopY = tableBox.max.y;
+//   tableBox.setFromObject(table);
+//   const tableTopY = tableBox.max.y;
 
   // physics part
   for (const f of fallingFruits) {

@@ -42,7 +42,7 @@ export function createFruitsTextures(renderer) {
             metalness: 0.0,
             clearcoat: 1.0,
             clearcoatRoughness: 0.01,
-            transmission:0.15,
+            transmission:0.0,
             thickness: 0.2,
             ior: 1.45,
             color: 0xffffff,
