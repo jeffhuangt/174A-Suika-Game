@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { setupScene } from './setupScene.js';
 import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { merge } from './merge.js';
 
 const { scene, camera, renderer, controls } = setupScene();
@@ -48,6 +49,91 @@ table.position.y = - (tableThickness / 2) - 8.0;
 const tableBox = new THREE.Box3();
 
 scene.add(table);
+
+function lathe(points, segments) {
+    const g = new THREE.LatheGeometry(points, segments);
+    g.computeVertexNormals();
+    return g;
+}
+
+function flipGeometry(g) {
+    g.scale(-1, 1, 1);
+    g.computeVertexNormals();
+    return g;
+}
+
+export function makeCup({ 
+    height = 30,
+    radiusBottom = 12,
+    radiusTop = 15, 
+    wall = 0.15, 
+    bottom = 0.25,
+    segments = 160,
+    rimLip = 0.06,
+} = {}) {
+    const outerPts = [
+        new THREE.Vector2(radiusBottom, 0.0),
+        new THREE.Vector2(radiusBottom + 0.05, 0.15),
+        new THREE.Vector2(radiusBottom + 0.1, 0.35),
+        new THREE.Vector2(radiusTop - 0.10, height - 0.35),
+        new THREE.Vector2(radiusTop, height - 0.1),
+        new THREE.Vector2(radiusTop + rimLip, height),
+    ]
+
+    const innerBottomR = Math.max(0.01, radiusBottom - wall);
+    const innerTopR = Math.max(0.01, radiusTop - wall);
+    
+    const innerPts = [
+        new THREE.Vector2(innerBottomR, bottom),
+        new THREE.Vector2(innerBottomR + 0.04, bottom + 0.2),
+        new THREE.Vector2(innerTopR - 0.06, height - 0.35),
+        new THREE.Vector2(innerTopR, height),
+    ];
+
+    const outerWall = lathe(outerPts, segments);
+    const innerWall = flipGeometry(lathe(innerPts, segments));
+
+    const outerBottom = new THREE.CircleGeometry(radiusBottom, segments);
+    outerBottom.rotateX(-Math.PI / 2);
+    outerBottom.translate(0, 0, 0);
+    outerBottom.computeVertexNormals();
+
+    const innerBottom = new THREE.CircleGeometry(innerBottomR, segments);
+    innerBottom.rotateX(Math.PI / 2);
+    innerBottom.translate(0, bottom, 0);
+    innerBottom.computeVertexNormals();
+
+    const outerTopR = radiusTop + rimLip;
+    const rim = new THREE.RingGeometry(innerTopR, outerTopR, segments);
+    rim.rotateX(Math.PI / 2);
+    rim.translate(0, height, 0);
+    rim.computeVertexNormals();
+
+    const cupGeometry = mergeGeometries([outerWall, innerWall, outerBottom, innerBottom, rim], true);
+    cupGeometry.computeVertexNormals();
+
+    const cupMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        transmission: 1.0,
+        roughness: 0.06,
+        metalness: 0.0,
+        ior: 1.5,
+        thickness: wall * 2.0,
+        transparent: true,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.03,
+        side: THREE.FrontSide,
+    });
+
+    const cup = new THREE.Mesh(cupGeometry, cupMaterial);
+    cup.castShadow = true;
+    cup.receiveShadow = true;
+
+    return cup;
+}
+
+const cup = makeCup({ height: 30, wall:0.15, bottom: 0.25 });
+scene.add(cup);
 
 
 const sphereGeometries = generateSphereGeometries(11, 1, 1.25);
