@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { setupScene } from './setupScene.js';
 import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
+import { merge } from './merge.js';
 
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
@@ -81,7 +82,7 @@ sphereMeshes.forEach(sphere => {
 let nextFruitIndex = 0;
 
 function spawnFruit() {
-  const maxIndex = 4;
+  const maxIndex = 6;
   const fruitIndex = Math.floor(Math.random() * (maxIndex + 1));
 
   const fruitName = fruitOrder[fruitIndex];
@@ -133,6 +134,8 @@ function animate() {
       f.velocityY = 0;
     }
   }
+
+  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
 
   controls.update();
   renderer.render(scene, camera);
