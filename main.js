@@ -75,7 +75,7 @@ export function makeCup({
         new THREE.Vector2(radiusBottom, 0.0),
         new THREE.Vector2(radiusBottom + 0.05, 0.15),
         new THREE.Vector2(radiusBottom + 0.1, 0.35),
-        new THREE.Vector2(radiusTop - 0.10, height - 0.35),
+        new THREE.Vector2(radiusTop - 0.1, height - 0.35),
         new THREE.Vector2(radiusTop, height - 0.1),
         new THREE.Vector2(radiusTop + rimLip, height),
     ]
@@ -160,6 +160,8 @@ function createDropGuide() {
     gapSize: 0.3,
     transparent: true,
     opacity: 0.95,
+    depthTest: true,
+    depthWrite: false,
   });
 
   const line = new THREE.Line(geometry, material);
@@ -244,7 +246,7 @@ function updatePreviewMesh() {
   const geometry = sphereGeometries[nextFruitIndex];
   const material = fruitMaterials[fruitName].clone();
   material.transparent = true;
-  material.opacity = 0.5;
+  material.opacity = 0.99;
 
   previewMesh = new THREE.Mesh(geometry, material);
   previewMesh.position.set(0, 25, 0);
