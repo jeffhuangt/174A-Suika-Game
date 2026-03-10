@@ -321,6 +321,48 @@ function innerRadiusAtY(cupData, yLocal) {
   return cupData.innerBottomR + t * (cupData.innerTopR - cupData.innerBottomR);
 }
 
+function cupWallCollision(f) {
+  const cupData = cup.userData.cup;
+
+  const cupBaseY = cup.position.y;
+  const yLocal = f.pos.y - cupBaseY;
+
+  if (yLocal < cupData.bottom || yLocal > cupData.height) return;
+
+  const innerR = innerRadiusAtY(cupData, yLocal);
+  const allowedR = innerR - f.radius;
+
+  const dx = f.pos.x - cup.position.x;
+  const dz = f.pos.z - cup.position.z;
+
+  const r = Math.hypot(dx, dz);
+
+  if (r <= allowedR || r < 1e-6) return;
+
+  // wall normals
+  const nx = dx / r;
+  const nz = dz / r;
+
+  // push fruit back inside
+  const correctedR = allowedR + 0.001;
+
+  f.pos.x = cup.position.x + nx * correctedR;
+  f.pos.z = cup.position.z + nz * correctedR;
+
+  const v = f.vel;
+
+  const vn = v.x * nx + v.z * nz;
+
+  if (vn > 0) return;
+
+  v.x -= (1 + 0.25) * vn * nx;
+  v.z -= (1 + 0.25) * vn * nz;
+
+  // wall friction
+  v.x *= 0.92;
+  v.z *= 0.92;
+}
+
 window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
@@ -416,6 +458,8 @@ function animate() {
     // gravity
     f.vel.y  += GRAVITY * dt;
     f.pos.addScaledVector(f.vel, dt);
+
+    cupWallCollision(f);
 
     const cupData = cup.userData.cup;
     const cupBaseY = cup.position.y;
