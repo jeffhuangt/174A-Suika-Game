@@ -325,6 +325,9 @@ window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
   if (!previewMesh) return;
+  if(activeFruit && !fallingFruits.includes(activeFruit)) {
+    activeFruit = null;
+  }
   if (activeFruit && !activeFruit.isSettled) return;
 
   const fruitIndex = nextFruitIndex;
@@ -348,10 +351,9 @@ function spawnFruit() {
   const fruitObj = {
     mesh,
     radius,
-    pos: new THREE.Vector2(mesh.position.x, mesh.position.y),
-    vel: new THREE.Vector2(0, 0),
+    pos: mesh.position.clone(),
+    vel: new THREE.Vector3(0, 0, 0),
     mass: radius * radius,
-    guideLine: createDropGuide(),
     isSettled: false,
   }
 
@@ -413,10 +415,7 @@ function animate() {
 
     // gravity
     f.vel.y  += GRAVITY * dt;
-
-    // integrate
-    f.pos.x += f.vel.x * dt;
-    f.pos.y += f.vel.y * dt;
+    f.pos.addScaledVector(f.vel, dt);
 
     const cupData = cup.userData.cup;
     const cupBaseY = cup.position.y;
@@ -436,6 +435,7 @@ function animate() {
       }
 
       f.vel.x *= (1 - FRICTION_TABLE);
+      f.vel.z *= (1 - FRICTION_TABLE);
 
       if (Math.abs(f.vel.y) < SETTLE_SPEED) {
         f.vel.y = 0;
@@ -447,11 +447,13 @@ function animate() {
       }
     } else if (f.pos.y - f.radius <= tableTopY) { // collide with table top
       f.pos.y = tableTopY + f.radius + 0.001;
+      
       if (f.vel.y < 0) {
         f.vel.y = -f.vel.y * RESTITUTION_TABLE;
       }
 
       f.vel.x *= (1 - FRICTION_TABLE);
+      f.vel.z *= (1 - FRICTION_TABLE);
 
       if (Math.abs(f.vel.y) < SETTLE_SPEED) {
         f.vel.y = 0;
@@ -468,11 +470,14 @@ function animate() {
     // damping
     f.vel.multiplyScalar(LINEAR_DAMPING);
 
-    f.mesh.position.x = f.pos.x;
-    f.mesh.position.y = f.pos.y;
+    f.mesh.position.copy(f.pos);
   }
 
-  //merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
+  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
+  
+  if(activeFruit && !fallingFruits.includes(activeFruit)) {
+    activeFruit = null;
+  }
 
   controls.update();
   renderer.render(scene, camera);

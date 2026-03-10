@@ -8,7 +8,7 @@ export function merge({ scene,
     fruitMaterials,
     faceMaterials,
     createFaceDecals,
-    eps = 0.02, // tolerance
+    eps = 0.08, // tolerance
     popY = 2.5,
 }) {
 
@@ -27,52 +27,58 @@ export function merge({ scene,
         scene.add(mesh);
     
         createFaceDecals(mesh, fruitName, faceMaterials, { yaw: 0 });
+
+        const fruitObj = {
+            mesh,
+            radius,
+            pos: pos.clone(),
+            vel: new THREE.Vector3(0, popY, 0), // upward pop
+            mass: radius * radius,
+            isSettled: false,
+        };
     
-        fallingFruits.push({ mesh, velocityY: popY, radius, isSettled: false });
-
+        fallingFruits.push(fruitObj);
     }
-
 
     for (let i = 0; i < fallingFruits.length; i++) {
         const first = fallingFruits[i];
         const firstName = first.mesh.userData.fruitName;
 
         for (let j = i + 1; j < fallingFruits.length; j++) {
-        const second = fallingFruits[j];
-        const secondName = second.mesh.userData.fruitName;
+            const second = fallingFruits[j];
+            const secondName = second.mesh.userData.fruitName;
 
-        if (firstName !== secondName) continue;
-        if (!first.isSettled || !second.isSettled) continue;
+            if (firstName !== secondName) continue;
 
-        const dx = first.mesh.position.x - second.mesh.position.x;
-        const dy = first.mesh.position.y - second.mesh.position.y;
-        const dz = first.mesh.position.z - second.mesh.position.z;
-        const distanceFrom = dx * dx + dy * dy + dz * dz;
+            const dx = first.mesh.position.x - second.mesh.position.x;
+            const dy = first.mesh.position.y - second.mesh.position.y;
+            const dz = first.mesh.position.z - second.mesh.position.z;
+            
+            const distSq = dx * dx + dy * dy + dz * dz;
+            const rSum = first.radius + second.radius;
+            const thr = (rSum + eps) * (rSum + eps);
+            if (distSq > thr) continue;
 
-        const rSum = first.radius + second.radius;
-        const thr = (rSum + eps) * (rSum + eps);
-        if (distanceFrom > thr) continue;
+            const curIndex = fruitOrder.indexOf(firstName);
+            const nextIndex = curIndex + 1;
 
-        const curIndex = fruitOrder.indexOf(firstName);
-        const nextIndex = curIndex + 1;
+            if (nextIndex >= sphereGeometries.length) return;
 
-        if (nextIndex >= sphereGeometries.length) return;
+            const mid = new THREE.Vector3()
+                .addVectors(first.mesh.position, second.mesh.position)
+                .multiplyScalar(0.5);
 
-        const mid = new THREE.Vector3()
-            .addVectors(first.mesh.position, second.mesh.position)
-            .multiplyScalar(0.5);
+            scene.remove(second.mesh);
+            scene.remove(first.mesh);
 
-        scene.remove(second.mesh);
-        scene.remove(first.mesh);
+            if (second.guideLine) scene.remove(second.guideLine);
+            if (first.guideLine) scene.remove(first.guideLine);
 
-        if (second.guideLine) scene.remove(second.guideLine);
-        if (first.guideLine) scene.remove(first.guideLine);
+            fallingFruits.splice(j, 1);
+            fallingFruits.splice(i, 1);
 
-        fallingFruits.splice(j, 1);
-        fallingFruits.splice(i, 1);
-
-        spawnByIndex(nextIndex, mid);
-        return;
+            spawnByIndex(nextIndex, mid);
+            return;
         }
     }
 }
