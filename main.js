@@ -478,8 +478,14 @@ function animate() {
         f.vel.y = -f.vel.y * RESTITUTION_TABLE;
       }
 
-      f.vel.x *= (1 - FRICTION_TABLE);
-      f.vel.z *= (1 - FRICTION_TABLE);
+      // reduce speed of fruits with friction
+      const sCup = Math.hypot(f.vel.x, f.vel.z);
+      if (sCup > 1e-9) {
+        const deltaV = FRICTION_TABLE * Math.abs(GRAVITY) * dt;
+        const reduce = Math.min(deltaV, sCup);
+        f.vel.x -= (f.vel.x / sCup) * reduce;
+        f.vel.z -= (f.vel.z / sCup) * reduce;
+      }
 
       if (Math.abs(f.vel.y) < SETTLE_SPEED) {
         f.vel.y = 0;
@@ -496,8 +502,14 @@ function animate() {
         f.vel.y = -f.vel.y * RESTITUTION_TABLE;
       }
 
-      f.vel.x *= (1 - FRICTION_TABLE);
-      f.vel.z *= (1 - FRICTION_TABLE);
+      // reduce speed of fruits with friction on table
+      const sTable = Math.hypot(f.vel.x, f.vel.z);
+      if (sTable > 1e-9) {
+        const deltaV = FRICTION_TABLE * Math.abs(GRAVITY) * dt;
+        const reduce = Math.min(deltaV, sTable);
+        f.vel.x -= (f.vel.x / sTable) * reduce;
+        f.vel.z -= (f.vel.z / sTable) * reduce;
+      }
 
       if (Math.abs(f.vel.y) < SETTLE_SPEED) {
         f.vel.y = 0;
