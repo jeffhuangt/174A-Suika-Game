@@ -138,7 +138,7 @@ export function makeCup({
 
 const cup = makeCup({ height: 30, wall:0.15, bottom: 0.25 });
 cup.renderOrder = 2;
-cup.position.set(-50, tableTopY + 0.01, 0);
+cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
 
 
