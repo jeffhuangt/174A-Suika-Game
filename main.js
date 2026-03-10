@@ -176,19 +176,31 @@ function getDropHitY(mesh, radius, cup, tableTopY) {
   const cupData = cup.userData.cup;
 
   const cupBaseY = cup.position.y;
-  const cupInnerBottomY = cupBaseY + cupData.bottom;
+  const cupBottomY = cupBaseY + cupData.bottom;
 
   const dx = mesh.position.x - cup.position.x;
   const dz = mesh.position.z - cup.position.z;
   const rXZ = Math.hypot(dx, dz);
 
-  const overCupOpening = rXZ <= (cupData.innerTopR - radius);
+  const maxTopFit = cupData.innerTopR - radius;
+  const maxBottomFit = cupData.innerBottomR - radius;
 
-  if (overCupOpening) {
-    return cupInnerBottomY;
+  // Ouside the opening entirely -> table
+  if (rXZ > maxTopFit) {
+    return tableTopY;
   }
 
-  return tableTopY;
+  // Fits all the way to the bottom -> cup bottom
+  if (rXZ <= maxBottomFit) {
+    return cupBottomY;
+  }
+
+  // Otherwise it hits the inner wall
+  const t = (rXZ - maxBottomFit) / (maxTopFit - maxBottomFit);
+  const yLocalAtWall = cupData.bottom + t * (cupData.height - cupData.bottom);
+  const wallBottomY = cupBaseY + yLocalAtWall - radius;
+
+  return wallBottomY;
 }
 
 const sphereGeometries = generateSphereGeometries(11, 1, 1.25);
@@ -294,6 +306,15 @@ function onPointerMove(event) {
     previewMesh.position.copy(target);
     previewMesh.position.y = planeHeight;
   }
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function innerRadiusAtY(cupData, yLocal) {
+  const t = clamp((yLocal - cupData.bottom) / (cupData.height - cupData.bottom), 0, 1);
+  return cupData.innerBottomR + t * (cupData.innerTopR - cupData.innerBottomR);
 }
 
 window.addEventListener('pointermove', onPointerMove);
@@ -417,25 +438,25 @@ function animate() {
       }
     }
 
-    if (f.guideLine) {
-      const hitY = getDropHitY(f.mesh, f.radius, cup, tableTopY);
+    // if (f.guideLine) {
+    //   const hitY = getDropHitY(f.mesh, f.radius, cup, tableTopY);
 
-      const start = new THREE.Vector3(
-        f.mesh.position.x,
-        f.mesh.position.y - f.radius - 0.02,
-        f.mesh.position.z
-      );
+    //   const start = new THREE.Vector3(
+    //     f.mesh.position.x,
+    //     f.mesh.position.y - f.radius - 0.02,
+    //     f.mesh.position.z
+    //   );
 
-      const end = new THREE.Vector3(
-        f.mesh.position.x,
-        hitY,
-        f.mesh.position.z
-      );
+    //   const end = new THREE.Vector3(
+    //     f.mesh.position.x,
+    //     hitY,
+    //     f.mesh.position.z
+    //   );
 
-      f.guideLine.geometry.setFromPoints([start, end]);
-      f.guideLine.computeLineDistances();
-      //console.log('falling fruit entry: ', f);
-    }
+    //   f.guideLine.geometry.setFromPoints([start, end]);
+    //   f.guideLine.computeLineDistances();
+    //   //console.log('falling fruit entry: ', f);
+    // }
   }
 
   merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
