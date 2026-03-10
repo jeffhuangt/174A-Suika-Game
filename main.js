@@ -466,7 +466,7 @@ function animate() {
     const cupInnerBottomY = cupBaseY + cupData.bottom;
 
     const dx = f.pos.x - cup.position.x;
-    const dz = f.mesh.position.z - cup.position.z; // keep z fixed for now
+    const dz = f.pos.z - cup.position.z;
     const rXZ = Math.hypot(dx, dz);
     const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
 

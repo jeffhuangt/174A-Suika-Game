@@ -50,9 +50,9 @@ export function merge({ scene,
 
             if (firstName !== secondName) continue;
 
-            const dx = first.mesh.position.x - second.mesh.position.x;
-            const dy = first.mesh.position.y - second.mesh.position.y;
-            const dz = first.mesh.position.z - second.mesh.position.z;
+            const dx = first.pos.x - second.pos.x;
+            const dy = first.pos.y - second.pos.y;
+            const dz = first.pos.z - second.pos.z;
             
             const distSq = dx * dx + dy * dy + dz * dz;
             const rSum = first.radius + second.radius;
@@ -65,7 +65,7 @@ export function merge({ scene,
             if (nextIndex >= sphereGeometries.length) return;
 
             const mid = new THREE.Vector3()
-                .addVectors(first.mesh.position, second.mesh.position)
+                .addVectors(first.pos, second.pos)
                 .multiplyScalar(0.5);
 
             scene.remove(second.mesh);
