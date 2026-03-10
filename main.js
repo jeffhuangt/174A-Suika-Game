@@ -391,8 +391,23 @@ function animate() {
     f.velocityY += GRAVITY * dt;
     f.mesh.position.y += f.velocityY * dt;
 
-    // collide with table top
-    if (f.mesh.position.y - f.radius <= tableTopY) {
+    const cupData = cup.userData.cup;
+    const cupBaseY = cup.position.y;
+    const cupInnerBottomY = cupBaseY + cupData.bottom;
+
+    const dx = f.mesh.position.x - cup.position.x;
+    const dz = f.mesh.position.z - cup.position.z;
+    const rXZ = Math.hypot(dx, dz);
+    const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
+    if (overCupOpening && f.mesh.position.y - f.radius <= cupInnerBottomY) { // settle on cup bottom first if over cup opening
+      f.mesh.position.y = cupInnerBottomY + f.radius  + 0.001;
+      f.velocityY = 0;
+      f.isSettled = true;
+
+      if (activeFruit === f) {
+        activeFruit = null;
+      }
+    } else if (f.mesh.position.y - f.radius <= tableTopY) { // collide with table top
       f.mesh.position.y = tableTopY + f.radius;
       f.velocityY = 0;
       f.isSettled = true;
