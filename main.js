@@ -4,15 +4,19 @@ import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { merge } from './merge.js';
-import { velocity } from 'three/tsl';
 
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
 
+const GRAVITY = -25;
+const RESTITUTION_TABLE = 0.25 // bounce on table
+const FRICTION_TABLE = 0.15 //horizontal slowdown on table hit
+const LINEAR_DAMPING = 0.995; // global damping each frame
+const SETTLE_SPEED = 0.08 // below this, fruit is consider to be at rest
+
 
 const timer = new THREE.Timer();
 const fallingFruits = [];
-const GRAVITY = -25;
 let activeFruit = null;
 
 function generateSphereGeometries(numSpheres, radius, scale) {
@@ -343,8 +347,10 @@ function spawnFruit() {
 
   const fruitObj = {
     mesh,
-    velocityY: 0,
     radius,
+    pos: new THREE.Vector2(mesh.position.x, mesh.position.y),
+    vel: new THREE.Vector2(0, 0),
+    mass: radius * radius,
     guideLine: createDropGuide(),
     isSettled: false,
   }
@@ -405,61 +411,68 @@ function animate() {
   for (const f of fallingFruits) {
     if (!f.mesh) continue;
 
-    if(!f.guideLine) {
-      f.guideLine = createDropGuide();
-    }
+    // gravity
+    f.vel.y  += GRAVITY * dt;
 
-    f.velocityY += GRAVITY * dt;
-    f.mesh.position.y += f.velocityY * dt;
+    // integrate
+    f.pos.x += f.vel.x * dt;
+    f.pos.y += f.vel.y * dt;
 
     const cupData = cup.userData.cup;
     const cupBaseY = cup.position.y;
     const cupInnerBottomY = cupBaseY + cupData.bottom;
 
-    const dx = f.mesh.position.x - cup.position.x;
-    const dz = f.mesh.position.z - cup.position.z;
+    const dx = f.pos.x - cup.position.x;
+    const dz = f.mesh.position.z - cup.position.z; // keep z fixed for now
     const rXZ = Math.hypot(dx, dz);
     const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
-    if (overCupOpening && f.mesh.position.y - f.radius <= cupInnerBottomY) { // settle on cup bottom first if over cup opening
-      f.mesh.position.y = cupInnerBottomY + f.radius  + 0.001;
-      f.velocityY = 0;
-      f.isSettled = true;
 
-      if (activeFruit === f) {
-        activeFruit = null;
+    // settle on cup bottom first if over cup opening
+    if (overCupOpening && f.pos.y - f.radius <= cupInnerBottomY) {
+      f.pos.y = cupInnerBottomY + f.radius  + 0.001;
+      
+      if (f.vel.y < 0) {
+        f.vel.y = -f.vel.y * RESTITUTION_TABLE;
       }
-    } else if (f.mesh.position.y - f.radius <= tableTopY) { // collide with table top
-      f.mesh.position.y = tableTopY + f.radius;
-      f.velocityY = 0;
-      f.isSettled = true;
 
-      if (activeFruit === f) {
-        activeFruit = null;
+      f.vel.x *= (1 - FRICTION_TABLE);
+
+      if (Math.abs(f.vel.y) < SETTLE_SPEED) {
+        f.vel.y = 0;
+        f.isSettled = true;
+
+        if (activeFruit === f) {
+          activeFruit = null;
+        }
       }
+    } else if (f.pos.y - f.radius <= tableTopY) { // collide with table top
+      f.pos.y = tableTopY + f.radius + 0.001;
+      if (f.vel.y < 0) {
+        f.vel.y = -f.vel.y * RESTITUTION_TABLE;
+      }
+
+      f.vel.x *= (1 - FRICTION_TABLE);
+
+      if (Math.abs(f.vel.y) < SETTLE_SPEED) {
+        f.vel.y = 0;
+        f.isSettled = true;
+
+        if (activeFruit === f) {
+          activeFruit = null;
+        }
+      }
+    } else {
+      f.isSettled = false;
     }
 
-    // if (f.guideLine) {
-    //   const hitY = getDropHitY(f.mesh, f.radius, cup, tableTopY);
+    // damping
+    f.vel.multiplyScalar(LINEAR_DAMPING);
 
-    //   const start = new THREE.Vector3(
-    //     f.mesh.position.x,
-    //     f.mesh.position.y - f.radius - 0.02,
-    //     f.mesh.position.z
-    //   );
-
-    //   const end = new THREE.Vector3(
-    //     f.mesh.position.x,
-    //     hitY,
-    //     f.mesh.position.z
-    //   );
-
-    //   f.guideLine.geometry.setFromPoints([start, end]);
-    //   f.guideLine.computeLineDistances();
-    //   //console.log('falling fruit entry: ', f);
-    // }
+    f.mesh.position.x = f.pos.x;
+    f.mesh.position.y = f.pos.y;
   }
 
-  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
+  //merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
 
   controls.update();
   renderer.render(scene, camera);
