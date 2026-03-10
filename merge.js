@@ -64,6 +64,9 @@ export function merge({ scene,
         scene.remove(second.mesh);
         scene.remove(first.mesh);
 
+        if (second.guideLine) scene.remove(second.guideLine);
+        if (first.guideLine) scene.remove(first.guideLine);
+
         fallingFruits.splice(j, 1);
         fallingFruits.splice(i, 1);
 

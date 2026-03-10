@@ -133,6 +133,13 @@ export function makeCup({
     cup.castShadow = true;
     cup.receiveShadow = true;
 
+    cup.userData.cup = {
+      height,
+      bottom,
+      innerBottomR,
+      innerTopR,
+    };
+
     return cup;
 }
 
@@ -141,6 +148,44 @@ cup.renderOrder = 2;
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
 
+function createDropGuide() {
+  const geometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(),
+    new THREE.Vector3()
+  ]);
+
+  const material = new THREE.LineDashedMaterial({
+    color: 0x0055ff,
+    dashSize: 0.6,
+    gapSize: 0.3,
+    transparent: true,
+    opacity: 0.95,
+  });
+
+  const line = new THREE.Line(geometry, material);
+  line.computeLineDistances();
+  scene.add(line);
+  return line;
+}
+
+function getDropHitY(mesh, radius, cup, tableTopY) {
+  const cupData = cup.userData.cup;
+
+  const cupBaseY = cup.position.y;
+  const cupInnerBottomY = cupBaseY + cupData.bottom;
+
+  const dx = mesh.position.x - cup.position.x;
+  const dz = mesh.position.z - cup.position.z;
+  const rXZ = Math.hypot(dx, dz);
+
+  const overCupOpening = rXZ <= (cupData.innerTopR - radius);
+
+  if (overCupOpening) {
+    return cupInnerBottomY;
+  }
+
+  return tableTopY;
+}
 
 const sphereGeometries = generateSphereGeometries(11, 1, 1.25);
 const sphereMeshes = [];
@@ -182,12 +227,17 @@ const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeHeight);
 
 let nextFruitIndex = Math.floor(Math.random() * maxFruitIndex);
 let previewMesh = null;
+let previewGuideLine = null;
 
 function updatePreviewMesh() {
   if (previewMesh) {
     scene.remove(previewMesh);
     previewMesh.geometry.dispose();
     previewMesh.material.dispose();
+  }
+
+  if (previewGuideLine) {
+    scene.remove(previewGuideLine);
   }
 
   const fruitName = fruitOrder[nextFruitIndex];
@@ -198,9 +248,12 @@ function updatePreviewMesh() {
 
   previewMesh = new THREE.Mesh(geometry, material);
   previewMesh.position.set(0, 25, 0);
+  previewMesh.userData.fruitName = fruitName;
   scene.add(previewMesh);
 
   createFaceDecals(previewMesh, fruitName, faceMaterials, { yaw: 0 });
+
+  previewGuideLine = createDropGuide();
 }
 
 updatePreviewMesh();
@@ -248,7 +301,7 @@ function spawnFruit() {
   // add face decal
   createFaceDecals(mesh, fruitName, faceMaterials, { yaw: 0 });
 
-  fallingFruits.push({ mesh, velocityY: 0, radius });
+  fallingFruits.push({ mesh, velocityY: 0, radius, guideLine: createDropGuide() });
 
   // update next fruit
   nextFruitIndex = Math.floor(Math.random() * 5);
@@ -277,11 +330,37 @@ function animate() {
 
   const dt = Math.min(timer.getDelta(), 1 / 30); //0.033);
 
-//   tableBox.setFromObject(table);
-//   const tableTopY = tableBox.max.y;
+  if (previewMesh && previewGuideLine && previewGuideLine.geometry) {
+    const previewRadius = previewMesh.geometry.parameters.radius;
+    const hitY = getDropHitY(previewMesh, previewRadius, cup, tableTopY);
+
+    const start = new THREE.Vector3(
+      previewMesh.position.x,
+      previewMesh.position.y - previewRadius - 0.02,
+      previewMesh.position.z
+    );
+
+    const end = new THREE.Vector3(
+      previewMesh.position.x,
+      hitY,
+      previewMesh.position.z
+    );
+
+    previewGuideLine.geometry.setFromPoints([start, end]);
+    previewGuideLine.computeLineDistances();
+  }
+
+  // tableBox.setFromObject(table);
+  // const tableTopY = tableBox.max.y;
 
   // physics part
   for (const f of fallingFruits) {
+    if (!f.mesh) continue;
+
+    if(!f.guideLine) {
+      f.guideLine = createDropGuide();
+    }
+
     f.velocityY += GRAVITY * dt;
     f.mesh.position.y += f.velocityY * dt;
 
@@ -289,6 +368,26 @@ function animate() {
     if (f.mesh.position.y - f.radius <= tableTopY) {
       f.mesh.position.y = tableTopY + f.radius;
       f.velocityY = 0;
+    }
+
+    if (f.guideLine) {
+      const hitY = getDropHitY(f.mesh, f.radius, cup, tableTopY);
+
+      const start = new THREE.Vector3(
+        f.mesh.position.x,
+        f.mesh.position.y - f.radius - 0.02,
+        f.mesh.position.z
+      );
+
+      const end = new THREE.Vector3(
+        f.mesh.position.x,
+        hitY,
+        f.mesh.position.z
+      );
+
+      f.guideLine.geometry.setFromPoints([start, end]);
+      f.guideLine.computeLineDistances();
+      //console.log('falling fruit entry: ', f);
     }
   }
 
