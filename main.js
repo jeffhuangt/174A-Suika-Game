@@ -378,41 +378,43 @@ function resolveFruitFruitCollisions(fruits) {
       const dy = a.pos.y - b.pos.y;
       const dz = a.pos.z - b.pos.z;
       const dist = Math.hypot(dx, dy, dz);
-      const rSum = a.radius + b.radius;
-      const minDist = rSum + FRUIT_COLLIDE_EPS;
-      if (dist >= minDist || dist < 1e-9) continue;
+      const minDist = a.radius + b.radius + FRUIT_COLLIDE_EPS;
+      if (dist >= minDist || dist < 1e-9){
+        continue;
+      }
 
-      const nx = dx / dist;
-      const ny = dy / dist;
-      const nz = dz / dist;
-
+      const normx = dx / dist;
+      const normy = dy / dist;
+      const normz = dz / dist;
       // push apart the mass
       const overlap = minDist - dist;
       const totalMass = a.mass + b.mass;
       const ratioA = b.mass / totalMass;
       const ratioB = a.mass / totalMass;
-      a.pos.x += nx * overlap * ratioA;
-      a.pos.y += ny * overlap * ratioA;
-      a.pos.z += nz * overlap * ratioA;
-      b.pos.x -= nx * overlap * ratioB;
-      b.pos.y -= ny * overlap * ratioB;
-      b.pos.z -= nz * overlap * ratioB;
+      a.pos.x += normx * overlap * ratioA;
+      a.pos.y += normy * overlap * ratioA;
+      a.pos.z += normz * overlap * ratioA;
+      b.pos.x -= normx * overlap * ratioB;
+      b.pos.y -= normy * overlap * ratioB;
+      b.pos.z -= normz * overlap * ratioB;
 
       // calculate the impulse
       const vRelX = a.vel.x - b.vel.x;
       const vRelY = a.vel.y - b.vel.y;
       const vRelZ = a.vel.z - b.vel.z;
-      const vn = vRelX * nx + vRelY * ny + vRelZ * nz;
+      const vn = vRelX * normx + vRelY * normy + vRelZ * normz;
       // no collision
-      if (vn >= 0) continue;
+      if (vn >= 0){
+        continue;
+      }
 
       const jMag = -(1 + RESTITUTION_FRUIT) * vn / (1 / a.mass + 1 / b.mass);
-      a.vel.x += (jMag / a.mass) * nx;
-      a.vel.y += (jMag / a.mass) * ny;
-      a.vel.z += (jMag / a.mass) * nz;
-      b.vel.x -= (jMag / b.mass) * nx;
-      b.vel.y -= (jMag / b.mass) * ny;
-      b.vel.z -= (jMag / b.mass) * nz;
+      a.vel.x += (jMag / a.mass) * normx;
+      a.vel.y += (jMag / a.mass) * normy;
+      a.vel.z += (jMag / a.mass) * normz;
+      b.vel.x -= (jMag / b.mass) * normx;
+      b.vel.y -= (jMag / b.mass) * normy;
+      b.vel.z -= (jMag / b.mass) * normz;
     }
   }
 }
