@@ -28,7 +28,7 @@ export function merge({ scene,
     
         createFaceDecals(mesh, fruitName, faceMaterials, { yaw: 0 });
     
-        fallingFruits.push({ mesh, velocityY: popY, radius });
+        fallingFruits.push({ mesh, velocityY: popY, radius, isSettled: false });
 
     }
 
@@ -42,6 +42,7 @@ export function merge({ scene,
         const secondName = second.mesh.userData.fruitName;
 
         if (firstName !== secondName) continue;
+        if (!first.isSettled || !second.isSettled) continue;
 
         const dx = first.mesh.position.x - second.mesh.position.x;
         const dy = first.mesh.position.y - second.mesh.position.y;

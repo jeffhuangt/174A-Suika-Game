@@ -4,6 +4,7 @@ import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { merge } from './merge.js';
+import { velocity } from 'three/tsl';
 
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
@@ -12,6 +13,7 @@ const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(rende
 const timer = new THREE.Timer();
 const fallingFruits = [];
 const GRAVITY = -25;
+let activeFruit = null;
 
 function generateSphereGeometries(numSpheres, radius, scale) {
   const geometries = [];
@@ -298,6 +300,7 @@ window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
   if (!previewMesh) return;
+  if (activeFruit && !activeFruit.isSettled) return;
 
   const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
@@ -317,7 +320,16 @@ function spawnFruit() {
   // add face decal
   createFaceDecals(mesh, fruitName, faceMaterials, { yaw: 0 });
 
-  fallingFruits.push({ mesh, velocityY: 0, radius, guideLine: createDropGuide() });
+  const fruitObj = {
+    mesh,
+    velocityY: 0,
+    radius,
+    guideLine: createDropGuide(),
+    isSettled: false,
+  }
+
+  fallingFruits.push(fruitObj);
+  activeFruit = fruitObj;
 
   // update next fruit
   nextFruitIndex = Math.floor(Math.random() * 5);
@@ -383,6 +395,11 @@ function animate() {
     if (f.mesh.position.y - f.radius <= tableTopY) {
       f.mesh.position.y = tableTopY + f.radius;
       f.velocityY = 0;
+      f.isSettled = true;
+
+      if (activeFruit === f) {
+        activeFruit = null;
+      }
     }
 
     if (f.guideLine) {
