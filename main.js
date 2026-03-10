@@ -216,7 +216,7 @@ sphereMeshes.forEach(sphere => {
   createFaceDecals(sphere, sphere.userData.fruitName, faceMaterials, { yaw: 0 });
 });
 
-const planeHeight = 20;
+const planeHeight = 25;
 const planeLength = 25;
 const maxFruitIndex = 4;
 
@@ -258,6 +258,24 @@ function updatePreviewMesh() {
 
 updatePreviewMesh();
 
+function clampPreviewToCup(target, previewRadius) {
+  const cupData = cup.userData.cup;
+
+  const dx = target.x - cup.position.x;
+  const dz = target.z - cup.position.z;
+  const dist = Math.hypot(dx, dz);
+
+  const allowedRadius = Math.max(0, cupData.innerTopR - previewRadius - 0.2);
+
+  if (dist > allowedRadius && dist > 1e-6) {
+    const s = allowedRadius / dist;
+    target.x = cup.position.x + dx * s;
+    target.z = cup.position.z + dz * s;
+  }
+
+  return target;
+}
+
 function onPointerMove(event) {
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
@@ -266,15 +284,11 @@ function onPointerMove(event) {
   const target = new THREE.Vector3();
   raycaster.ray.intersectPlane(plane, target);
 
-  if (target) {
-    const limit = planeLength / 2;
-    target.x = Math.max(-limit, Math.min(limit, target.x));
-    target.z = Math.max(-limit, Math.min(limit, target.z));
-    target.y = 25;
-
-    if (previewMesh) {
-      previewMesh.position.copy(target);
-    }
+  if (target && previewMesh) {
+    const previewRadius  = previewMesh.geometry.parameters.radius;
+    clampPreviewToCup(target, previewRadius);
+    previewMesh.position.copy(target);
+    previewMesh.position.y = planeHeight;
   }
 }
 
@@ -312,9 +326,8 @@ function spawnFruit() {
   const target = new THREE.Vector3();
   raycaster.ray.intersectPlane(plane, target);
   if (target && previewMesh) {
-    const limit = planeLength / 2;
-    target.x = Math.max(-limit, Math.min(limit, target.x));
-    target.z = Math.max(-limit, Math.min(limit, target.z));
+    const previewRadius  = previewMesh.geometry.parameters.radius;
+    clampPreviewToCup(target, previewRadius);
     previewMesh.position.copy(target);
     previewMesh.position.y = planeHeight;
   }
