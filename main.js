@@ -9,10 +9,12 @@ const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
 
 const GRAVITY = -25;
-const RESTITUTION_TABLE = 0.25 // bounce on table
-const FRICTION_TABLE = 0.15 //horizontal slowdown on table hit
+const RESTITUTION_TABLE = 0.25; // bounce on table
+const RESTITUTION_FRUIT = 0.4; // fruit-fruit bounce
+const FRICTION_TABLE = 0.15; // horizontal slowdown on table hit
 const LINEAR_DAMPING = 0.995; // global damping each frame
-const SETTLE_SPEED = 0.08 // below this, fruit is consider to be at rest
+const SETTLE_SPEED = 0.08; // below this, fruit is consider to be at rest
+const FRUIT_COLLIDE_EPS = 0.001; // penetration tolerance for fruit-fruit
 
 
 const timer = new THREE.Timer();
@@ -363,6 +365,58 @@ function cupWallCollision(f) {
   v.z *= 0.92;
 }
 
+function resolveFruitFruitCollisions(fruits) {
+  const n = fruits.length;
+  for (let i = 0; i < n; i++) {
+    const a = fruits[i];
+    if (!a.mesh) continue;
+    for (let j = i + 1; j < n; j++) {
+      const b = fruits[j];
+      if (!b.mesh) continue;
+
+      const dx = a.pos.x - b.pos.x;
+      const dy = a.pos.y - b.pos.y;
+      const dz = a.pos.z - b.pos.z;
+      const dist = Math.hypot(dx, dy, dz);
+      const rSum = a.radius + b.radius;
+      const minDist = rSum + FRUIT_COLLIDE_EPS;
+      if (dist >= minDist || dist < 1e-9) continue;
+
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const nz = dz / dist;
+
+      // push apart the mass
+      const overlap = minDist - dist;
+      const totalMass = a.mass + b.mass;
+      const ratioA = b.mass / totalMass;
+      const ratioB = a.mass / totalMass;
+      a.pos.x += nx * overlap * ratioA;
+      a.pos.y += ny * overlap * ratioA;
+      a.pos.z += nz * overlap * ratioA;
+      b.pos.x -= nx * overlap * ratioB;
+      b.pos.y -= ny * overlap * ratioB;
+      b.pos.z -= nz * overlap * ratioB;
+
+      // calculate the impulse
+      const vRelX = a.vel.x - b.vel.x;
+      const vRelY = a.vel.y - b.vel.y;
+      const vRelZ = a.vel.z - b.vel.z;
+      const vn = vRelX * nx + vRelY * ny + vRelZ * nz;
+      // no collision
+      if (vn >= 0) continue;
+
+      const jMag = -(1 + RESTITUTION_FRUIT) * vn / (1 / a.mass + 1 / b.mass);
+      a.vel.x += (jMag / a.mass) * nx;
+      a.vel.y += (jMag / a.mass) * ny;
+      a.vel.z += (jMag / a.mass) * nz;
+      b.vel.x -= (jMag / b.mass) * nx;
+      b.vel.y -= (jMag / b.mass) * ny;
+      b.vel.z -= (jMag / b.mass) * nz;
+    }
+  }
+}
+
 window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
@@ -454,10 +508,14 @@ function animate() {
   // physics part
   for (const f of fallingFruits) {
     if (!f.mesh) continue;
-
     // gravity
-    f.vel.y  += GRAVITY * dt;
+    f.vel.y += GRAVITY * dt;
     f.pos.addScaledVector(f.vel, dt);
+  }
+  resolveFruitFruitCollisions(fallingFruits);
+
+  for (const f of fallingFruits) {
+    if (!f.mesh) continue;
 
     cupWallCollision(f);
 
