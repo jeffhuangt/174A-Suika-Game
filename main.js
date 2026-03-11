@@ -13,8 +13,11 @@ const RESTITUTION_TABLE = 0.25; // bounce on table
 const RESTITUTION_FRUIT = 0.4; // fruit-fruit bounce
 const FRICTION_TABLE = 0.15; // horizontal slowdown on table hit
 const LINEAR_DAMPING = 0.995; // global damping each frame
-const SETTLE_SPEED = 0.08; // below this, fruit is consider to be at rest
 const FRUIT_COLLIDE_EPS = 0.001; // penetration tolerance for fruit-fruit
+const SLEEP_SPEED = 0.03;
+const SLEEP_FRAMES = 20;
+const POSITION_EPS = 0.0005;
+const COLLISION_PASSES = 15;
 
 
 const timer = new THREE.Timer();
@@ -240,7 +243,7 @@ sphereMeshes.forEach(sphere => {
 
 const planeHeight = 25;
 const planeLength = 25;
-const maxFruitIndex = 4;
+const maxFruitIndex = 5;
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -367,9 +370,11 @@ function cupWallCollision(f) {
 
 function resolveFruitFruitCollisions(fruits) {
   const n = fruits.length;
+
   for (let i = 0; i < n; i++) {
     const a = fruits[i];
     if (!a.mesh) continue;
+
     for (let j = i + 1; j < n; j++) {
       const b = fruits[j];
       if (!b.mesh) continue;
@@ -379,21 +384,30 @@ function resolveFruitFruitCollisions(fruits) {
       const dz = a.pos.z - b.pos.z;
       const dist = Math.hypot(dx, dy, dz);
       const minDist = a.radius + b.radius + FRUIT_COLLIDE_EPS;
+
       if (dist >= minDist || dist < 1e-9){
         continue;
       }
 
+      a.isSettled = false;
+      b.isSettled = false;
+      a.sleepFrames = 0;
+      b.sleepFrames = 0;
+
       const normx = dx / dist;
       const normy = dy / dist;
       const normz = dz / dist;
+
       // push apart the mass
-      const overlap = minDist - dist;
+      const overlap = Math.max(0, minDist - dist - 0.0005);
       const totalMass = a.mass + b.mass;
       const ratioA = b.mass / totalMass;
       const ratioB = a.mass / totalMass;
+      
       a.pos.x += normx * overlap * ratioA;
       a.pos.y += normy * overlap * ratioA;
       a.pos.z += normz * overlap * ratioA;
+      
       b.pos.x -= normx * overlap * ratioB;
       b.pos.y -= normy * overlap * ratioB;
       b.pos.z -= normz * overlap * ratioB;
@@ -403,15 +417,45 @@ function resolveFruitFruitCollisions(fruits) {
       const vRelY = a.vel.y - b.vel.y;
       const vRelZ = a.vel.z - b.vel.z;
       const vn = vRelX * normx + vRelY * normy + vRelZ * normz;
+
+      if (Math.abs(normy) > 0.6) {
+        if (a.pos.y > b.pos.y) {
+          a.hasSupport = true;
+        } else {
+          b.hasSupport = true;
+        }
+      }
+
       // no collision
       if (vn >= 0){
         continue;
       }
 
-      const jMag = -(1 + RESTITUTION_FRUIT) * vn / (1 / a.mass + 1 / b.mass);
+      if (vn > -1.0) {
+        const invMassSum = (1 / a.mass) + (1 / b.mass);
+        const jRest = -vn / invMassSum;
+
+        a.vel.x += (jRest / a.mass) * normx;
+        a.vel.y += (jRest / a.mass) * normy;
+        a.vel.z += (jRest / a.mass) * normz;
+        
+        b.vel.x -= (jRest / b.mass) * normx;
+        b.vel.y -= (jRest / b.mass) * normy;
+        b.vel.z -= (jRest / b.mass) * normz;
+
+        continue;
+      }
+
+      // wake up and bounce fruit if involved large impact
+      a.isSettled = false;
+      b.isSettled = false;
+
+      const jMag = -(1 + RESTITUTION_FRUIT) * vn / ((1 / a.mass) + (1 / b.mass));
+      
       a.vel.x += (jMag / a.mass) * normx;
       a.vel.y += (jMag / a.mass) * normy;
       a.vel.z += (jMag / a.mass) * normz;
+      
       b.vel.x -= (jMag / b.mass) * normx;
       b.vel.y -= (jMag / b.mass) * normy;
       b.vel.z -= (jMag / b.mass) * normz;
@@ -426,7 +470,7 @@ function spawnFruit() {
   if(activeFruit && !fallingFruits.includes(activeFruit)) {
     activeFruit = null;
   }
-  if (activeFruit && !activeFruit.isSettled) return;
+  if (activeFruit) return;
 
   const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
@@ -453,6 +497,13 @@ function spawnFruit() {
     vel: new THREE.Vector3(0, 0, 0),
     mass: radius * radius,
     isSettled: false,
+    hasSupport: false,
+    lastY: mesh.position.y,
+    stableFrames: 0,
+    age: 0,
+    dropUnlocked: false,
+    sleepFrames: 0,
+    prevPos: mesh.position.clone(),
   }
 
   fallingFruits.push(fruitObj);
@@ -472,6 +523,38 @@ function spawnFruit() {
     previewMesh.position.copy(target);
     previewMesh.position.y = planeHeight;
   }
+}
+
+function isFruitSupported(f, fruits, cup, tableTopY) {
+  const cupData = cup.userData.cup;
+  const cupBaseY = cup.position.y;
+  const cupInnerBottomY = cupBaseY + cupData.bottom;
+
+  const dxCup = f.pos.x - cup.position.x;
+  const dzCup = f.pos.z - cup.position.z;
+  const rXZ = Math.hypot(dxCup, dzCup);
+  const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
+
+  // table or cup bottom
+  if (f.pos.y - f.radius <= tableTopY + 0.08) return true;
+  if (overCupOpening && f.pos.y - f.radius <= cupInnerBottomY + 0.08) return true;
+
+  // another fruit
+  for (const other of fruits) {
+    if (other === f || !other.mesh) continue;
+
+    const dx = f.pos.x - other.pos.x;
+    const dy = f.pos.y - other.pos.y;
+    const dz = f.pos.z - other.pos.z;
+    const dist = Math.hypot(dx, dy, dz);
+    const minDist = f.radius + other.radius;
+
+    if (dist <= minDist + 0.12 && dy > -0.02) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 window.addEventListener('keydown', (event) => {
@@ -504,20 +587,30 @@ function animate() {
     previewGuideLine.computeLineDistances();
   }
 
-  // tableBox.setFromObject(table);
-  // const tableTopY = tableBox.max.y;
+  for (const f of fallingFruits) {
+    if (!f.mesh) continue;
+    f.hasSupport = false;
+  }
 
   // physics part
   for (const f of fallingFruits) {
-    if (!f.mesh) continue;
+    if (!f.mesh || f.isSettled) continue;
     // gravity
     f.vel.y += GRAVITY * dt;
     f.pos.addScaledVector(f.vel, dt);
   }
-  resolveFruitFruitCollisions(fallingFruits);
+
+  for (let pass = 0; pass < COLLISION_PASSES; pass++) {
+    resolveFruitFruitCollisions(fallingFruits);
+  }
 
   for (const f of fallingFruits) {
     if (!f.mesh) continue;
+
+    if (f.isSettled) {
+      f.mesh.position.copy(f.pos);
+      continue;
+    }
 
     cupWallCollision(f);
 
@@ -546,15 +639,6 @@ function animate() {
         f.vel.x -= (f.vel.x / sCup) * reduce;
         f.vel.z -= (f.vel.z / sCup) * reduce;
       }
-
-      if (Math.abs(f.vel.y) < SETTLE_SPEED) {
-        f.vel.y = 0;
-        f.isSettled = true;
-
-        if (activeFruit === f) {
-          activeFruit = null;
-        }
-      }
     } else if (f.pos.y - f.radius <= tableTopY) { // collide with table top
       f.pos.y = tableTopY + f.radius + 0.001;
       
@@ -570,23 +654,54 @@ function animate() {
         f.vel.x -= (f.vel.x / sTable) * reduce;
         f.vel.z -= (f.vel.z / sTable) * reduce;
       }
-
-      if (Math.abs(f.vel.y) < SETTLE_SPEED) {
-        f.vel.y = 0;
-        f.isSettled = true;
-
-        if (activeFruit === f) {
-          activeFruit = null;
-        }
-      }
-    } else {
-      f.isSettled = false;
     }
 
     // damping
     f.vel.multiplyScalar(LINEAR_DAMPING);
-
     f.mesh.position.copy(f.pos);
+
+    const frameMove = f.pos.distanceTo(f.prevPos);
+    const speed = f.vel.length();
+    const supported = isFruitSupported(f, fallingFruits, cup, tableTopY);
+
+    if (supported && speed < SLEEP_SPEED && frameMove < POSITION_EPS) {
+      f.sleepFrames += 1;
+    } else {
+      f.sleepFrames = 0;
+    }
+
+    if (f.sleepFrames >= SLEEP_FRAMES) {
+        f.isSettled = true;
+        f.vel.set(0, 0, 0);
+      } else {
+        f.isSettled = false;
+      }
+
+      f.prevPos.copy(f.pos);
+  }
+
+  if (activeFruit && activeFruit.mesh) {
+    activeFruit.age += dt;
+
+    const supported = isFruitSupported(activeFruit, fallingFruits, cup, tableTopY);
+    const dyFrame = Math.abs(activeFruit.pos.y - activeFruit.lastY);
+
+    if (supported && dyFrame < 0.01) {
+      activeFruit.stableFrames += 1;
+    } else {
+      activeFruit.stableFrames = 0;
+    }
+
+    activeFruit.lastY = activeFruit.pos.y;
+
+    // only unlock spawning; do NOT freeze physics here
+    if (!activeFruit.dropUnlocked && (
+      activeFruit.stableFrames >= 6 ||
+      (supported && activeFruit.age > 0.35)
+    )) {
+      activeFruit.dropUnlocked = true;
+      activeFruit = null;
+    }
   }
 
   merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });

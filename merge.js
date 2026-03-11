@@ -35,6 +35,13 @@ export function merge({ scene,
             vel: new THREE.Vector3(0, popY, 0), // upward pop
             mass: radius * radius,
             isSettled: false,
+            hasSupport: false,
+            lastY: pos.y,
+            stableFrames: 0,
+            age: 0,
+            dropUnlocked: false,
+            sleepFrames: 0,
+            prevPos: pos.clone(),
         };
     
         fallingFruits.push(fruitObj);
