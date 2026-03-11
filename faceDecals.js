@@ -22,7 +22,7 @@ export function createFaceDecals(sphereMesh, fruitName, faceMaterials, {
         sphereMesh,
         position,
         orientation,
-        new THREE.Vector3(size, size, size * 0.18) //0.12)
+        new THREE.Vector3(size, size, size * 0.12)
     );
 
     const decalMesh = new THREE.Mesh(decalGeo, faceMaterials[fruitName]);
