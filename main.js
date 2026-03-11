@@ -19,7 +19,6 @@ const SLEEP_FRAMES = 20;
 const POSITION_EPS = 0.0005;
 const COLLISION_PASSES = 15;
 
-
 const timer = new THREE.Timer();
 const fallingFruits = [];
 let activeFruit = null;
@@ -61,101 +60,225 @@ const tableBox = new THREE.Box3().setFromObject(table);
 const tableTopY = tableBox.max.y;
 scene.add(table);
 
-function lathe(points, segments) {
-    const g = new THREE.LatheGeometry(points, segments);
-    g.computeVertexNormals();
-    return g;
-}
+// export function makeCup({ 
+//     height = 30,
+//     radiusBottom = 12,
+//     radiusTop = 15, 
+//     wall = 0.15, 
+//     bottom = 0.25,
+//     segments = 160,
+//     rimLip = 0.06,
+// } = {}) {
+//     const outerPts = [
+//         new THREE.Vector2(radiusBottom, 0.0),
+//         new THREE.Vector2(radiusBottom + 0.05, 0.15),
+//         new THREE.Vector2(radiusBottom + 0.1, 0.35),
+//         new THREE.Vector2(radiusTop - 0.1, height - 0.35),
+//         new THREE.Vector2(radiusTop, height - 0.1),
+//         new THREE.Vector2(radiusTop + rimLip, height),
+//     ];
 
-function flipGeometry(g) {
-    g.scale(-1, 1, 1);
-    g.computeVertexNormals();
-    return g;
-}
-
-export function makeCup({ 
-    height = 30,
-    radiusBottom = 12,
-    radiusTop = 15, 
-    wall = 0.15, 
-    bottom = 0.25,
-    segments = 160,
-    rimLip = 0.06,
-} = {}) {
-    const outerPts = [
-        new THREE.Vector2(radiusBottom, 0.0),
-        new THREE.Vector2(radiusBottom + 0.05, 0.15),
-        new THREE.Vector2(radiusBottom + 0.1, 0.35),
-        new THREE.Vector2(radiusTop - 0.1, height - 0.35),
-        new THREE.Vector2(radiusTop, height - 0.1),
-        new THREE.Vector2(radiusTop + rimLip, height),
-    ]
-
-    const innerBottomR = Math.max(0.01, radiusBottom - wall);
-    const innerTopR = Math.max(0.01, radiusTop - wall);
+//     const innerBottomR = Math.max(0.01, radiusBottom - wall);
+//     const innerTopR = Math.max(0.01, radiusTop - wall);
     
-    const innerPts = [
-        new THREE.Vector2(innerBottomR, bottom),
-        new THREE.Vector2(innerBottomR + 0.04, bottom + 0.2),
-        new THREE.Vector2(innerTopR - 0.06, height - 0.35),
-        new THREE.Vector2(innerTopR, height),
-    ];
+//     const innerPts = [
+//         new THREE.Vector2(innerBottomR, bottom),
+//         new THREE.Vector2(innerBottomR + 0.04, bottom + 0.2),
+//         new THREE.Vector2(innerTopR - 0.06, height - 0.35),
+//         new THREE.Vector2(innerTopR, height),
+//     ].reverse();
 
-    const outerWall = lathe(outerPts, segments);
-    const innerWall = flipGeometry(lathe(innerPts, segments));
+//     const outerWall = lathe(outerPts, segments);
+//     const innerWall = lathe(innerPts, segments);
 
-    const outerBottom = new THREE.CircleGeometry(radiusBottom, segments);
-    outerBottom.rotateX(-Math.PI / 2);
-    outerBottom.translate(0, 0, 0);
-    outerBottom.computeVertexNormals();
+//     const outerBottom = new THREE.CircleGeometry(radiusBottom, segments);
+//     outerBottom.rotateX(Math.PI / 2);
+//     outerBottom.translate(0, 0, 0);
 
-    const innerBottom = new THREE.CircleGeometry(innerBottomR, segments);
-    innerBottom.rotateX(Math.PI / 2);
-    innerBottom.translate(0, bottom, 0);
-    innerBottom.computeVertexNormals();
+//     const innerBottom = new THREE.CircleGeometry(innerBottomR, segments);
+//     innerBottom.rotateX(-Math.PI / 2);
+//     innerBottom.translate(0, bottom, 0);
 
-    const outerTopR = radiusTop + rimLip;
-    const rim = new THREE.RingGeometry(innerTopR, outerTopR, segments);
-    rim.rotateX(Math.PI / 2);
-    rim.translate(0, height, 0);
-    rim.computeVertexNormals();
+//     const outerTopR = radiusTop + rimLip;
+//     const rim = new THREE.RingGeometry(innerTopR, outerTopR, segments);
+//     rim.rotateX(-Math.PI / 2);
+//     rim.translate(0, height, 0);
 
-    const cupGeometry = mergeGeometries([outerWall, innerWall, outerBottom, innerBottom, rim], true);
-    cupGeometry.computeVertexNormals();
+//     const cupGeometry = mergeGeometries([outerWall, innerWall, outerBottom, innerBottom, rim], false);
 
-    const cupMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xe8f6ff,
-        transmission: 1.0,
-        roughness: 0.02,
-        metalness: 0.0,
-        ior: 1.5,
-        thickness: wall * 8.0,
-        transparent: true,
-        opacity: 1.0,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.01,
-        envMapIntensity: 1.5,
-        side: THREE.FrontSide,
-    });
-    cupMaterial.depthWrite = false;
-    cupMaterial.depthTest = true;
+//     // One material to rule them all. 
+//     const glassMaterial = new THREE.MeshPhysicalMaterial({
+//         color: 0xe8f6ff,
+//         transmission: 1.0,
+//         roughness: 0.02,
+//         metalness: 0.0,
+//         ior: 1.5,
+//         thickness: wall * 2,
+//         clearcoat: 1.0,
+//         clearcoatRoughness: 0.01,
+//         envMapIntensity: 1.5,
+//         side: THREE.FrontSide,
+//         depthWrite: false,
+//     });
 
-    const cup = new THREE.Mesh(cupGeometry, cupMaterial);
-    cup.castShadow = true;
-    cup.receiveShadow = true;
+//     const cupMesh = new THREE.Mesh(cupGeometry, glassMaterial);
+//     cupMesh.renderOrder = 10;
+//     cupMesh.castShadow = true;
+//     cupMesh.receiveShadow = true;
 
-    cup.userData.cup = {
-      height,
-      bottom,
-      innerBottomR,
-      innerTopR,
-    };
+//     const cup = new THREE.Group();
+//     cup.add(cupMesh);
 
-    return cup;
+//     cup.userData.cup = {
+//       height,
+//       bottom,
+//       innerBottomR,
+//       innerTopR,
+//     };
+
+//     return cup;
+// }
+// export function makeCup({ 
+//     height = 30,
+//     radiusBottom = 12,
+//     radiusTop = 15, 
+//     wall = 0.4, 
+//     bottom = 0.5,
+//     segments = 160,
+// } = {}) {
+//     // Define the cross-section points (from bottom-center to top-rim and back down)
+//     const pts = [
+//         new THREE.Vector2(0, 0),                         // Center bottom (outside)
+//         new THREE.Vector2(radiusBottom, 0),              // Bottom corner
+//         new THREE.Vector2(radiusTop, height),            // Top outer rim
+//         new THREE.Vector2(radiusTop - wall/2, height + 0.2), // Rounded top edge
+//         new THREE.Vector2(radiusTop - wall, height),     // Top inner rim
+//         new THREE.Vector2(radiusBottom - wall, bottom),  // Inner bottom corner
+//         new THREE.Vector2(0, bottom)                     // Center bottom (inside)
+//     ];
+
+//     const cupGeometry = new THREE.LatheGeometry(pts, segments);
+
+//     const glassMaterial = new THREE.MeshPhysicalMaterial({
+//         color: 0xffffff,
+//         transmission: 1.0,
+//         thickness: wall,
+//         roughness: 0.03,
+//         ior: 1.45,
+//         transparent: true,
+//         envMapIntensity: 1.5,
+//         depthWrite: false,
+//         depthTest:true,
+//     });
+
+//     const cupMesh = new THREE.Mesh(cupGeometry, glassMaterial);
+//     cupMesh.renderOrder = 3;
+    
+//     const cup = new THREE.Group();
+//     cup.add(cupMesh);
+//     cup.userData.cup = { height, bottom, innerBottomR: radiusBottom - wall, innerTopR: radiusTop - wall };
+//     return cup;
+// }
+export function makeCup({ 
+  height = 30,
+  radiusBottom = 12,
+  radiusTop = 15, 
+  wall = 0.15, 
+  bottom = 0.25,
+  segments = 160,
+  rimLip = 0.06,
+} = {}) {
+
+  const innerBottomR = Math.max(0.01, radiusBottom - wall);
+  const innerTopR = Math.max(0.01, radiusTop - wall);
+  const outerTopR = radiusTop + rimLip;
+
+  // Outer wall only (no axis points)
+  const outerPts = [
+    new THREE.Vector2(radiusBottom, 0.0),
+    new THREE.Vector2(radiusBottom + 0.05, 0.15),
+    new THREE.Vector2(radiusBottom + 0.10, 0.35),
+    new THREE.Vector2(radiusTop - 0.10, height - 0.35),
+    new THREE.Vector2(radiusTop, height - 0.10),
+    new THREE.Vector2(outerTopR, height),
+  ];
+
+  // Inner wall only (no axis points)
+  const innerPts = [
+    new THREE.Vector2(innerBottomR, bottom),
+    new THREE.Vector2(innerBottomR + 0.04, bottom + 0.20),
+    new THREE.Vector2(innerTopR - 0.06, height - 0.35),
+    new THREE.Vector2(innerTopR, height),
+  ];
+
+  const outerWall = lathe(outerPts, segments);
+  const innerWall = flipGeometry(lathe(innerPts, segments));
+
+  // Bottom thickness side (connects outer bottom edge to inner bottom edge)
+  const bottomSide = lathe([
+    new THREE.Vector2(radiusBottom, 0.0),
+    new THREE.Vector2(innerBottomR, bottom),
+  ], segments);
+
+  // Outside bottom
+  const outerBottom = new THREE.CircleGeometry(radiusBottom, segments);
+  outerBottom.rotateX(-Math.PI / 2);
+  outerBottom.translate(0, 0, 0);
+  outerBottom.computeVertexNormals();
+
+  // Inside floor
+  const innerBottom = new THREE.CircleGeometry(innerBottomR, segments);
+  innerBottom.rotateX(Math.PI / 2);
+  innerBottom.translate(0, bottom, 0);
+  innerBottom.computeVertexNormals();
+
+  // Top rim thickness
+  const rim = new THREE.RingGeometry(innerTopR, outerTopR, segments);
+  rim.rotateX(Math.PI / 2);
+  rim.translate(0, height, 0);
+  rim.computeVertexNormals();
+
+  const cupGeometry = mergeGeometries(
+    [outerWall, innerWall, bottomSide, outerBottom, innerBottom, rim],
+    false
+  );
+  cupGeometry.computeVertexNormals();
+
+  const glassMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, //0xe8f6ff,
+    transmission: 1.0,
+    thickness: wall,
+    roughness: 0.02,
+    metalness: 0.0,
+    ior: 1.5,
+    transparent: true,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.01,
+    envMapIntensity: 1.5,
+    depthWrite: false,
+    depthTest: true,
+    side: THREE.FrontSide,
+  });
+
+  const cupMesh = new THREE.Mesh(cupGeometry, glassMaterial);
+  cupMesh.renderOrder = 3;
+  cupMesh.castShadow = true;
+  cupMesh.receiveShadow = true;
+
+  const cup = new THREE.Group();
+  cup.add(cupMesh);
+
+  cup.userData.cup = {
+    height,
+    bottom,
+    innerBottomR,
+    innerTopR,
+  };
+
+  return cup;
 }
 
 const cup = makeCup({ height: 30, wall:0.15, bottom: 0.25 });
-cup.renderOrder = 2;
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
 
@@ -176,6 +299,7 @@ function createDropGuide() {
   });
 
   const line = new THREE.Line(geometry, material);
+  line.renderOrder = 11;
   line.computeLineDistances();
   scene.add(line);
   return line;
@@ -239,6 +363,10 @@ scene.updateMatrixWorld(true);
 
 sphereMeshes.forEach(sphere => {
   createFaceDecals(sphere, sphere.userData.fruitName, faceMaterials, { yaw: 0 });
+  sphere.renderOrder = 1;
+  sphere.children.forEach(child => {
+    child.renderOrder = 2;
+  });
 });
 
 const planeHeight = 25;
@@ -253,6 +381,19 @@ const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeHeight);
 let nextFruitIndex = Math.floor(Math.random() * maxFruitIndex);
 let previewMesh = null;
 let previewGuideLine = null;
+
+function lathe(points, segments) {
+  const g = new THREE.LatheGeometry(points, segments);
+  g.rotateY(Math.PI / segments);
+  g.computeVertexNormals();
+  return g;
+}
+
+function flipGeometry(g) {
+  g.scale(-1, 1, 1);
+  g.computeVertexNormals();
+  return g;
+}
 
 function updatePreviewMesh() {
   if (previewMesh) {
@@ -270,10 +411,12 @@ function updatePreviewMesh() {
   const material = fruitMaterials[fruitName].clone();
   material.transparent = true;
   material.opacity = 0.99;
+  material.depthWrite = true;
 
   previewMesh = new THREE.Mesh(geometry, material);
   previewMesh.position.set(0, 25, 0);
   previewMesh.userData.fruitName = fruitName;
+  previewMesh.renderOrder = 1;
   scene.add(previewMesh);
 
   createFaceDecals(previewMesh, fruitName, faceMaterials, { yaw: 0 });
@@ -480,6 +623,8 @@ function spawnFruit() {
 
   const mat = fruitMaterials[fruitName];
   const mesh = new THREE.Mesh(geometry, mat);
+  mesh.renderOrder = 1;
+  mesh.material.depthWrite = true;
   mesh.userData.fruitName = fruitName;
 
   // spawn at preview position

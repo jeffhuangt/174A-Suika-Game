@@ -88,13 +88,16 @@ export function createFruitsTextures(renderer) {
           name,
           new THREE.MeshBasicMaterial({ 
             map: tex,
-            transparent: true,
-            alphaTest: 0.1,
+            transparent: false, // mod
+            alphaTest: 0.05, //0.1,
             depthTest: true,
-            depthWrite: false,
+            depthWrite: true, // mod
+            depthTest: true,
             polygonOffset: true,
             polygonOffsetFactor: -4,
+            polygonOffsetUnits: -4,
             color: new THREE.Color(1.2, 1.2, 1.2),
+            side: THREE.DoubleSide,
          })
         ])
     );
