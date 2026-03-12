@@ -665,6 +665,23 @@ function animate() {
 
   for (let pass = 0; pass < COLLISION_PASSES; pass++) {
     resolveFruitFruitCollisions(fallingFruits);
+
+    for (const f of fallingFruits) {
+      if (!f.mesh) continue;
+
+      const cupData = cup.userData.cup;
+      const cupInnerBottomY = cup.position.y + cupData.bottom;
+      const dx = f.pos.x - cup.position.x;
+      const dz = f.pos.z - cup.position.z;
+      const rXZ = Math.hypot(dx, dz);
+      const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
+
+      if (overCupOpening && f.pos.y - f.radius < cupInnerBottomY) {
+        f.pos.y = cupInnerBottomY + f.radius;
+      } else if (f.pos.y - f.radius < tableTopY) {
+        f.pos.y = tableTopY + f.radius;
+      }
+    }
   }
 
   for (const f of fallingFruits) {
