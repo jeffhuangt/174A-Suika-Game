@@ -23,8 +23,10 @@ const TOP_OUT_LIMIT = 2.0; // seconds above rime before losing
 const timer = new THREE.Timer();
 const fallingFruits = [];
 let activeFruit = null;
+
 let gameOver = false;
 let topOutTime = 0;
+
 let score = 0;
 const fruitScores = {
   cherry: 1,
@@ -39,6 +41,22 @@ const fruitScores = {
   melon: 55,
   watermelon: 66,
 }
+
+const dropSound = new Audio('sounds/drop.mp3');
+const mergeSound = new Audio('sounds/merge.mp3');
+
+dropSound.volume = 1.0;
+mergeSound.volume = 0.3;
+
+function playDropSound() {
+  dropSound.currentTime = 0;
+  dropSound.play().catch(()=>{});
+}
+
+// function playMergeSound() {
+//   mergeSound.currentTime = 0;
+//   mergeSound.play().catch(()=>{});
+// }
 
 document.body.style.margin = '0';
 document.body.style.overflow = 'hidden';
@@ -695,6 +713,8 @@ function spawnFruit() {
   fallingFruits.push(fruitObj);
   activeFruit = fruitObj;
 
+  playDropSound();
+
   // update next fruit
   nextFruitIndex = Math.floor(Math.random() * 5);
   updatePreviewMesh();
@@ -907,7 +927,7 @@ function animate() {
     }
   }
 
-  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, fruitScores, addScore });
+  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, fruitScores, addScore, mergeSound });
 
   if (!gameOver) {
     if (hasFruitAboveOpening()) {

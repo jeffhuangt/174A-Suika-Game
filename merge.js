@@ -10,6 +10,7 @@ export function merge({ scene,
     createFaceDecals,
     fruitScores,
     addScore,
+    mergeSound,
     eps = 0.08, // tolerance
     popY = 2.5,
 }) {
@@ -77,6 +78,9 @@ export function merge({ scene,
             if (mergedFruitName && fruitScores[mergedFruitName] !== undefined) {
                 addScore(fruitScores[mergedFruitName]);
             }
+
+            mergeSound.currentTime = 0;
+            mergeSound.play().catch(()=>{});
 
             const mid = new THREE.Vector3()
                 .addVectors(first.pos, second.pos)
