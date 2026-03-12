@@ -25,6 +25,43 @@ const fallingFruits = [];
 let activeFruit = null;
 let gameOver = false;
 let topOutTime = 0;
+let score = 0;
+const fruitScores = {
+  cherry: 1,
+  strawberry: 3,
+  grape: 6,
+  orange: 10,
+  persimmon: 15,
+  apple: 21,
+  pear: 28,
+  peach: 36,
+  pineapple: 45,
+  melon: 55,
+  watermelon: 66,
+}
+
+const scoreEl = document.createElement('div');
+scoreEl.style.position = 'fixed';
+scoreEl.style.top = '16px';
+scoreEl.style.left = '16px';
+scoreEl.style.padding = '8px 12px';
+scoreEl.style.background = 'rgba(255,255,255,0.92)';
+scoreEl.style.color = '#222';
+scoreEl.style.fontFamily = 'sans-serif';
+scoreEl.style.fontSize = '20px';
+scoreEl.style.fontWeight = 'bold';
+scoreEl.style.borderRadius = '10px';
+scoreEl.style.zIndex = '99999';
+scoreEl.style.pointerEvents = 'none';
+scoreEl.textContent = `Score: ${score}`;
+document.body.style.margin = '0';
+document.body.style.overflow = 'hidden';
+document.body.appendChild(scoreEl);
+
+function addScore(points) {
+  score += points;
+  scoreEl.textContent = `Score: ${score}`;
+}
 
 function generateSphereGeometries(numSpheres, radius, scale) {
   const geometries = [];
@@ -784,7 +821,7 @@ function animate() {
     }
   }
 
-  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
+  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, fruitScores, addScore });
 
   if (!gameOver) {
     if (hasFruitAboveOpening()) {

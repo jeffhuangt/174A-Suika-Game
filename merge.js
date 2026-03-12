@@ -8,6 +8,8 @@ export function merge({ scene,
     fruitMaterials,
     faceMaterials,
     createFaceDecals,
+    fruitScores,
+    addScore,
     eps = 0.08, // tolerance
     popY = 2.5,
 }) {
@@ -70,6 +72,11 @@ export function merge({ scene,
             const nextIndex = curIndex + 1;
 
             if (nextIndex >= sphereGeometries.length) return;
+
+            const mergedFruitName = fruitOrder[nextIndex];
+            if (mergedFruitName && fruitScores[mergedFruitName] !== undefined) {
+                addScore(fruitScores[mergedFruitName]);
+            }
 
             const mid = new THREE.Vector3()
                 .addVectors(first.pos, second.pos)
