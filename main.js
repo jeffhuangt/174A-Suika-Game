@@ -18,10 +18,13 @@ const SLEEP_SPEED = 0.03;
 const SLEEP_FRAMES = 20;
 const POSITION_EPS = 0.0005;
 const COLLISION_PASSES = 15;
+const TOP_OUT_LIMIT = 2.0; // seconds above rime before losing
 
 const timer = new THREE.Timer();
 const fallingFruits = [];
 let activeFruit = null;
+let gameOver = false;
+let topOutTime = 0;
 
 function generateSphereGeometries(numSpheres, radius, scale) {
   const geometries = [];
@@ -277,6 +280,10 @@ function flipGeometry(g) {
 }
 
 function updatePreviewMesh() {
+  if (gameOver) {
+    clearPreview();
+    return;
+  }
   if (previewMesh) {
     scene.remove(previewMesh);
     previewMesh.geometry.dispose();
@@ -487,10 +494,40 @@ function resolveFruitFruitCollisions(fruits) {
   }
 }
 
+function clearPreview() {
+  if (previewMesh) {
+    scene.remove(previewMesh);
+    previewMesh.geometry.dispose();
+    previewMesh.material.dispose();
+    previewMesh = null;
+  }
+
+  if (previewGuideLine) {
+    scene.remove(previewGuideLine);
+    previewGuideLine = null;
+  }
+}
+
+function hasFruitAboveOpening() {
+  const cupData = cup.userData.cup;
+  const cupOpeningY = cup.position.y + cupData.height;
+
+  for (const f of fallingFruits) {
+    if (!f.mesh) continue;
+
+    // any part of the fruit above the rim
+    if (f.pos.y + f.radius > cupOpeningY) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
-  if (!previewMesh) return;
+  if(gameOver || !previewMesh) return;
   if(activeFruit && !fallingFruits.includes(activeFruit)) {
     activeFruit = null;
   }
@@ -731,6 +768,20 @@ function animate() {
   }
 
   merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
+
+  if (!gameOver) {
+    if (hasFruitAboveOpening()) {
+      topOutTime += dt;
+
+      if (topOutTime >= TOP_OUT_LIMIT) {
+        gameOver = true;
+        activeFruit = null;
+        clearPreview();
+      }
+    } else {
+      topOutTime = 0;
+    }
+  }
   
   if(activeFruit && !fallingFruits.includes(activeFruit)) {
     activeFruit = null;
