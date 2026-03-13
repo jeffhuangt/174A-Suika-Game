@@ -3,10 +3,10 @@ import { setupScene } from './setupScene.js';
 import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
 import { merge } from './merge.js';
-import { GRAVITY, RESTITUTION_TABLE, FRICTION_TABLE, LINEAR_DAMPING, SLEEP_SPEED, SLEEP_FRAMES, POSITION_EPS, COLLISION_PASSES, TOP_OUT_LIMIT, ROLLING_GRIP, SPIN_TRANSFER } from './constants.js';
+import { TOP_OUT_LIMIT } from './constants.js';
 import { fruitScores, addScore } from './ui.js';
 import { makeCup } from './cup.js';
-import { cupWallCollision, resolveFruitFruitCollisions, isFruitSupported } from './physics.js';
+import { stepPhysics } from './physics.js';
 
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
@@ -74,7 +74,7 @@ const tableBox = new THREE.Box3().setFromObject(table);
 const tableTopY = tableBox.max.y;
 scene.add(table);
 
-const cup = makeCup({ height: 30, wall:0.15, bottom: 0.25 });
+const cup = makeCup({ height: 20, radiusBottom: 9, radiusTop: 11, wall:0.15, bottom: 0.25 });
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
 
@@ -366,134 +366,7 @@ function animate() {
     previewGuideLine.computeLineDistances();
   }
 
-  for (const f of fallingFruits) {
-    if (!f.mesh) continue;
-    f.hasSupport = false;
-  }
-
-  // physics part
-  for (const f of fallingFruits) {
-    if (!f.mesh || f.isSettled) continue;
-    // gravity
-    f.vel.y += GRAVITY * dt;
-    f.pos.addScaledVector(f.vel, dt);
-  }
-
-  for (let pass = 0; pass < COLLISION_PASSES; pass++) {
-    resolveFruitFruitCollisions(fallingFruits);
-
-    for (const f of fallingFruits) {
-      if (!f.mesh) continue;
-
-      const cupData = cup.userData.cup;
-      const cupInnerBottomY = cup.position.y + cupData.bottom;
-      const dx = f.pos.x - cup.position.x;
-      const dz = f.pos.z - cup.position.z;
-      const rXZ = Math.hypot(dx, dz);
-      const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
-
-      if (overCupOpening && f.pos.y - f.radius < cupInnerBottomY) {
-        f.pos.y = cupInnerBottomY + f.radius;
-      } else if (f.pos.y - f.radius < tableTopY) {
-        f.pos.y = tableTopY + f.radius;
-      }
-    }
-  }
-
-  for (const f of fallingFruits) {
-    if (!f.mesh) continue;
-
-    if (f.isSettled) {
-      f.mesh.position.copy(f.pos);
-      continue;
-    }
-
-    cupWallCollision(f, cup);
-
-    const cupData = cup.userData.cup;
-    const cupBaseY = cup.position.y;
-    const cupInnerBottomY = cupBaseY + cupData.bottom;
-
-    const dx = f.pos.x - cup.position.x;
-    const dz = f.pos.z - cup.position.z;
-    const rXZ = Math.hypot(dx, dz);
-    const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
-
-    // settle on cup bottom first if over cup opening
-    if (overCupOpening && f.pos.y - f.radius <= cupInnerBottomY) {
-      f.pos.y = cupInnerBottomY + f.radius  + 0.001;
-
-      // Enforce rolling constraint gradually (no-slip friction)
-      if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
-      // Target ω for pure rolling: ω = (n × v) / r, n = (0,1,0)
-      const targetOmegaX = f.vel.z / f.radius;
-      const targetOmegaZ = -f.vel.x / f.radius;
-      const grip = Math.min(1.0, ROLLING_GRIP * dt);
-      f.angularVel.x += (targetOmegaX - f.angularVel.x) * grip;
-      f.angularVel.z += (targetOmegaZ - f.angularVel.z) * grip;
-      // Spin-to-velocity: surface spin nudges the fruit forward
-      f.vel.x += (f.angularVel.z * -f.radius - f.vel.x) * SPIN_TRANSFER;
-      f.vel.z += (f.angularVel.x *  f.radius - f.vel.z) * SPIN_TRANSFER;
-      f.angularVel.y *= 0.92; // bleed off top-spin gradually
-      
-      if (f.vel.y < 0) {
-        f.vel.y = -f.vel.y * RESTITUTION_TABLE;
-      }
-
-      // reduce speed of fruits with friction
-      const sCup = Math.hypot(f.vel.x, f.vel.z);
-      if (sCup > 1e-9) {
-        const deltaV = FRICTION_TABLE * Math.abs(GRAVITY) * dt;
-        const reduce = Math.min(deltaV, sCup);
-        f.vel.x -= (f.vel.x / sCup) * reduce;
-        f.vel.z -= (f.vel.z / sCup) * reduce;
-      }
-    } else if (f.pos.y - f.radius <= tableTopY) { // collide with table top
-      f.pos.y = tableTopY + f.radius + 0.001;
-
-      // Set rolling from velocity immediately (before bounce/friction) so no delay
-      if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
-      f.angularVel.x = f.vel.z / f.radius;
-      f.angularVel.y = 0;
-      f.angularVel.z = -f.vel.x / f.radius;
-      
-      if (f.vel.y < 0) {
-        f.vel.y = -f.vel.y * RESTITUTION_TABLE;
-      }
-
-      // reduce speed of fruits with friction on table
-      const sTable = Math.hypot(f.vel.x, f.vel.z);
-      if (sTable > 1e-9) {
-        const deltaV = FRICTION_TABLE * Math.abs(GRAVITY) * dt;
-        const reduce = Math.min(deltaV, sTable);
-        f.vel.x -= (f.vel.x / sTable) * reduce;
-        f.vel.z -= (f.vel.z / sTable) * reduce;
-      }
-    }
-
-    // damping
-    f.vel.multiplyScalar(LINEAR_DAMPING);
-    f.mesh.position.copy(f.pos);
-
-    const frameMove = f.pos.distanceTo(f.prevPos);
-    const speed = f.vel.length();
-    const supported = isFruitSupported(f, fallingFruits, cup, tableTopY);
-
-    if (supported && speed < SLEEP_SPEED && frameMove < POSITION_EPS) {
-      f.sleepFrames += 1;
-    } else {
-      f.sleepFrames = 0;
-    }
-
-    if (f.sleepFrames >= SLEEP_FRAMES) {
-        f.isSettled = true;
-        f.vel.set(0, 0, 0);
-      } else {
-        f.isSettled = false;
-      }
-
-      f.prevPos.copy(f.pos);
-  }
+  stepPhysics(fallingFruits, cup, tableTopY, dt);
 
   merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, fruitScores, addScore, mergeSound });
 
