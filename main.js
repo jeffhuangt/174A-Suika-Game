@@ -5,7 +5,9 @@ import { createFaceDecals } from './faceDecals.js';
 import { merge } from './merge.js';
 import { TOP_OUT_LIMIT } from './constants.js';
 import { fruitScores, addScore } from './ui.js';
-import { makeCup } from './cup.js';
+import { makeClassicCup } from './levels/classic.js';
+import { makeBowlCup } from './levels/bowl.js';
+import { makeTallCup } from './levels/tall.js';
 import { stepPhysics } from './physics.js';
 
 const { scene, camera, renderer, controls } = setupScene();
@@ -239,6 +241,51 @@ soundBtn.addEventListener('click', (e) => {
   toggleSound();
 });
 document.body.appendChild(soundBtn);
+
+// --- Level Selection UI ---
+const levelSelector = document.createElement('select');
+levelSelector.style.position = 'fixed';
+levelSelector.style.top = '20px';
+levelSelector.style.left = '20px';
+levelSelector.style.zIndex = '99999';
+levelSelector.style.padding = '8px 16px';
+levelSelector.style.borderRadius = '12px';
+levelSelector.style.border = '2px solid rgba(255,255,255,0.6)';
+levelSelector.style.fontFamily = `'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif`;
+levelSelector.style.fontSize = '16px';
+levelSelector.style.fontWeight = 'bold';
+levelSelector.style.color = '#145caa';
+levelSelector.style.background = `
+  radial-gradient(circle at 10% 10%,
+    rgba(255,255,255,0.95) 0%,
+    rgba(240,248,255,0.85) 40%,
+    rgba(214,233,248,0.7) 100%)
+`;
+levelSelector.style.boxShadow = `
+  inset 0 4px 10px rgba(255,255,255,0.8),
+  0 4px 12px rgba(40,90,130,0.12)
+`;
+levelSelector.style.outline = 'none';
+levelSelector.style.cursor = 'pointer';
+
+const optClassic = document.createElement('option');
+optClassic.value = 'classic';
+optClassic.textContent = 'Classic Cup';
+const optBowl = document.createElement('option');
+optBowl.value = 'bowl';
+optBowl.textContent = 'Bowl Shape';
+const optTall = document.createElement('option');
+optTall.value = 'tall';
+optTall.textContent = 'Tall Glass';
+
+levelSelector.appendChild(optClassic);
+levelSelector.appendChild(optBowl);
+levelSelector.appendChild(optTall);
+levelSelector.addEventListener('change', (e) => {
+  levelSelector.blur(); // remove focus so spacebar drops fruit instead of toggling dropdown
+  loadLevel(e.target.value);
+});
+document.body.appendChild(levelSelector);
 
 const legend = document.createElement('div');
 legend.style.position = 'fixed';
@@ -510,44 +557,102 @@ createPlant(roomX0 + cornerInset, roomZ1 - cornerInset);
 createPlant(roomX1 - cornerInset, roomZ1 - cornerInset);
 createLamp(tableWidth / 2 + lampOffset, 0);
 
-const cup = makeCup({ height: 24, radiusBottom: 9, radiusTop: 11, wall: 0.15, bottom: 0.25 });
-cup.traverse(c => {
-  if (c.isMesh) {
-    c.castShadow = false;
-    c.receiveShadow = true;
-  }
-});
-cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
+// Create Cup (Initial Load)
+let cup = makeClassicCup();
+cup.position.set(0, tableTopY + cup.userData.cup.bottom, 0);
+cup.receiveShadow = true;
+// keep standard cup shadow off since it blocks table shadow
+cup.castShadow = false;
 scene.add(cup);
 
-const planeGeo = new THREE.CircleGeometry(cup.userData.cup.innerTopR - 0.2, 64);
-planeGeo.rotateX(-Math.PI / 2);
-
-const highestMat = new THREE.MeshBasicMaterial({
+// Highest fruit plane
+let cupData = cup.userData.cup;
+const highestFruitPlaneGeo = new THREE.CircleGeometry(1, 64);
+highestFruitPlaneGeo.rotateX(-Math.PI / 2);
+const highestFruitPlaneMat = new THREE.MeshBasicMaterial({
   color: 0xffff00,
   transparent: true,
-  opacity: 0.2,
+  opacity: 0.3,
   side: THREE.DoubleSide,
   depthWrite: false
 });
-const highestFruitPlane = new THREE.Mesh(planeGeo, highestMat);
+const highestFruitPlane = new THREE.Mesh(highestFruitPlaneGeo, highestFruitPlaneMat);
 highestFruitPlane.position.x = cup.position.x;
 highestFruitPlane.position.z = cup.position.z;
-highestFruitPlane.position.y = cup.position.y + cup.userData.cup.bottom;
+highestFruitPlane.position.y = cup.position.y + cupData.bottom;
+highestFruitPlane.visible = false;
 scene.add(highestFruitPlane);
 
+// Danger line plane
+const dangerGeo = new THREE.CircleGeometry(1, 64);
+dangerGeo.rotateX(-Math.PI / 2);
 const dangerMat = new THREE.MeshBasicMaterial({
   color: 0xff0000,
   transparent: true,
   opacity: 0.0,
   side: THREE.DoubleSide,
-  depthWrite: false
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
 });
-const dangerPlane = new THREE.Mesh(planeGeo, dangerMat);
-dangerPlane.position.x = cup.position.x;
-dangerPlane.position.z = cup.position.z;
-dangerPlane.position.y = cup.position.y + cup.userData.cup.height;
+const dangerPlane = new THREE.Mesh(dangerGeo, dangerMat);
+dangerPlane.position.y = cup.position.y + cupData.bottom + (cupData.height - cupData.bottom) * 0.80;
 scene.add(dangerPlane);
+
+function updateLevelPlanesAndCamera() {
+  cupData = cup.userData.cup;
+  cup.position.set(0, tableTopY + cupData.bottom, 0);
+  
+  // Set Danger Plane Height mapping
+  dangerPlane.position.y = cup.position.y + cupData.bottom + (cupData.height - cupData.bottom) * 0.80;
+  
+  // Scale planes to new cup width
+  highestFruitPlane.scale.set(cupData.innerTopR - 0.2, 1, cupData.innerTopR - 0.2);
+  dangerPlane.scale.set(cupData.innerTopR - 0.2, 1, cupData.innerTopR - 0.2);
+
+  // update minimap camera boundaries
+  const outerR = cupData.outerTopR + 0.2;
+  miniCamera.left = -outerR;
+  miniCamera.right = outerR;
+  miniCamera.top = outerR;
+  miniCamera.bottom = -outerR;
+  miniCamera.updateProjectionMatrix();
+}
+updateLevelPlanesAndCamera();
+
+function loadLevel(type) {
+  // Remove existing cup
+  scene.remove(cup);
+  
+  // Create new cup
+  if (type === 'bowl') {
+    cup = makeBowlCup();
+  } else if (type === 'tall') {
+    cup = makeTallCup();
+  } else {
+    cup = makeClassicCup();
+  }
+  
+  cup.receiveShadow = true;
+  cup.castShadow = false;
+  scene.add(cup);
+  
+  updateLevelPlanesAndCamera();
+  
+  // Reset Game State
+  fallingFruits.forEach(f => {
+    if (f.mesh) {
+      scene.remove(f.mesh);
+      f.mesh.geometry.dispose();
+      f.mesh.material.dispose();
+    }
+  });
+  fallingFruits.length = 0;
+  
+  // Reset score
+  const scoreKeys = Object.keys(fruitScores);
+  scoreKeys.forEach(k => delete fruitScores[k]);
+  addScore(0);
+}
 
 function createDropGuide() {
   const geometry = new THREE.BufferGeometry().setFromPoints([
