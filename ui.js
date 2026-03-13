@@ -11,9 +11,15 @@ export const fruitScores = {
   pineapple: 45,
   melon: 55,
   watermelon: 66,
+};
+
+let currentLevel = 'classic';
+
+function getBestScore(level) {
+  return Number(localStorage.getItem(`suikaBest_${level}`) || 0);
 }
 
-let bestScore = Number(localStorage.getItem('suikaBestScore') || 0);
+let bestScore = getBestScore(currentLevel);
 
 const scoreHud = document.createElement('div');
 scoreHud.style.position = 'fixed';
@@ -179,6 +185,14 @@ export function addScore(points) {
   if (score > bestScore) {
     bestScore = score;
     bestValue.textContent = `${bestScore}`;
-    localStorage.setItem('suikaBestScore', String(bestScore));
+    localStorage.setItem(`suikaBest_${currentLevel}`, String(bestScore));
   }
+}
+
+export function setLevel(level) {
+  currentLevel = level;
+  bestScore = getBestScore(level);
+  bestValue.textContent = `${bestScore}`;
+  score = 0;
+  scoreValue.textContent = '0';
 }
