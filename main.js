@@ -11,6 +11,11 @@ import { stepPhysics } from './physics.js';
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
 
+// create mini camera
+const miniCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+miniCamera.position.set(0, 5, 30);
+miniCamera.lookAt(0, 5, 0);
+
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -51,7 +56,7 @@ mergeSound.volume = 0.3;
 
 function playDropSound() {
   dropSound.currentTime = 0;
-  dropSound.play().catch(()=>{});
+  dropSound.play().catch(() => { });
 }
 
 // function playMergeSound() {
@@ -277,7 +282,7 @@ ceiling.position.set(0, floorY + roomH, roomZC);
 ceiling.receiveShadow = true;
 scene.add(ceiling);
 
-const cup = makeCup({ height: 24, radiusBottom: 9, radiusTop: 11, wall:0.15, bottom: 0.25 });
+const cup = makeCup({ height: 24, radiusBottom: 9, radiusTop: 11, wall: 0.15, bottom: 0.25 });
 cup.traverse(c => {
   if (c.isMesh) {
     c.castShadow = false;
@@ -497,7 +502,7 @@ function onPointerMove(event) {
   raycaster.ray.intersectPlane(plane, target);
 
   if (target && previewMesh) {
-    const previewRadius  = previewMesh.geometry.parameters.radius;
+    const previewRadius = previewMesh.geometry.parameters.radius;
     clampPreviewToCup(target, previewRadius);
     previewMesh.position.copy(target);
     previewMesh.position.y = planeHeight;
@@ -585,7 +590,7 @@ function spawnFruit() {
   // update next fruit
   currentFruitIndex = nextFruitIndex;
   nextFruitIndex = Math.floor(Math.random() * 5);
-  
+
   updatePreviewMesh();
   updateNextFruitHud();
 
@@ -594,7 +599,7 @@ function spawnFruit() {
   const target = new THREE.Vector3();
   raycaster.ray.intersectPlane(plane, target);
   if (target && previewMesh) {
-    const previewRadius  = previewMesh.geometry.parameters.radius;
+    const previewRadius = previewMesh.geometry.parameters.radius;
     clampPreviewToCup(target, previewRadius);
     previewMesh.position.copy(target);
     previewMesh.position.y = planeHeight;
@@ -636,6 +641,10 @@ window.addEventListener('resize', () => {
   nextRenderer.setSize(110, 110);
   nextCamera.aspect = 1;
   nextCamera.updateProjectionMatrix();
+
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 function animate() {
@@ -688,8 +697,26 @@ function animate() {
   }
 
   controls.update();
+
+  renderer.autoClear = false;
+
+  // Rendering MAIN view
+  renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+  renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+  renderer.setScissorTest(true);
+  renderer.clear();
   renderer.render(scene, camera);
 
+  // Rendering MINI view
+  const miniSize = 250;
+  const padding = 20;
+  renderer.setViewport(window.innerWidth - miniSize - padding, padding, miniSize, miniSize);
+  renderer.setScissor(window.innerWidth - miniSize - padding, padding, miniSize, miniSize);
+  renderer.setScissorTest(true);
+
+  // Clear the mini viewport only, not the whole screen
+  renderer.clearDepth();
+  renderer.render(scene, miniCamera);
 }
 
 renderer.setAnimationLoop(animate);
