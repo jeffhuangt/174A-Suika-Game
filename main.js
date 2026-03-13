@@ -74,7 +74,7 @@ const tableBox = new THREE.Box3().setFromObject(table);
 const tableTopY = tableBox.max.y;
 scene.add(table);
 
-const cup = makeCup({ height: 20, radiusBottom: 9, radiusTop: 11, wall:0.15, bottom: 0.25 });
+const cup = makeCup({ height: 25, radiusBottom: 9, radiusTop: 11, wall:0.15, bottom: 0.25 });
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
 

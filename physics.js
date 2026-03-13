@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import {
   GRAVITY, RESTITUTION_TABLE, RESTITUTION_FRUIT, RESTITUTION_WALL,
   FRICTION_TABLE, FRICTION_WALL, LINEAR_DAMPING, ANGULAR_DAMPING,
-  FRUIT_COLLIDE_EPS, SLEEP_SPEED, SLEEP_FRAMES, POSITION_EPS,
-  COLLISION_PASSES, MAX_ANGULAR_SPEED,
+  COLLISION_SPIN, FRUIT_COLLIDE_EPS, SLEEP_SPEED, SLEEP_FRAMES,
+  POSITION_EPS, COLLISION_PASSES, MAX_ANGULAR_SPEED,
 } from './constants.js';
 
 // reused every frame to avoid allocating new objects
@@ -194,6 +194,14 @@ export function stepPhysics(fallingFruits, cup, tableTopY, dt) {
     f.pos.addScaledVector(f.vel, dt);
   }
 
+  // remember velocity before collisions so we can figure out how hard each fruit got hit
+  for (const f of fallingFruits) {
+    if (!f.mesh || f.isSettled) continue;
+    f._vx0 = f.vel.x;
+    f._vy0 = f.vel.y;
+    f._vz0 = f.vel.z;
+  }
+
   // run collision resolution multiple times so piled-up fruits settle properly
   for (let pass = 0; pass < COLLISION_PASSES; pass++) {
     resolveFruitFruitCollisions(fallingFruits);
@@ -215,6 +223,24 @@ export function stepPhysics(fallingFruits, cup, tableTopY, dt) {
       } else if (f.pos.y - f.radius < tableTopY) {
         f.pos.y = tableTopY + f.radius;
       }
+    }
+  }
+
+  // make fruits tumble when they get hi
+  for (const f of fallingFruits) {
+    if (!f.mesh || f.isSettled) continue;
+    if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
+
+    const dvx = f.vel.x - f._vx0;
+    const dvy = f.vel.y - f._vy0;
+    const dvz = f.vel.z - f._vz0;
+    const dvMag = Math.hypot(dvx, dvy, dvz);
+
+    if (dvMag > 0.3) {
+      const spin = COLLISION_SPIN * dvMag / f.radius;
+      // a push in x makes it roll around z, a push in z makes it roll around x
+      f.angularVel.x += (dvz / dvMag) * spin;
+      f.angularVel.z += (-dvx / dvMag) * spin;
     }
   }
 

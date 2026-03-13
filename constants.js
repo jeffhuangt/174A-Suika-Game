@@ -6,6 +6,7 @@ export const FRICTION_TABLE = 0.3; // slows fruits sliding on the table / cup fl
 export const FRICTION_WALL = 0.4; // slows fruits scraping along the cup wall
 export const LINEAR_DAMPING = 0.995; // air resistance, applied every frame
 export const ANGULAR_DAMPING = 0.90; // how fast spin dies out
+export const COLLISION_SPIN = 0.35; // how much a collision makes a fruit tumble
 export const FRUIT_COLLIDE_EPS = 0.001; // tiny gap so fruits don't overlap exactly
 export const SLEEP_SPEED = 0.03;
 export const SLEEP_FRAMES = 20;
