@@ -277,6 +277,32 @@ export function stepPhysics(fallingFruits, cup, tableTopY, dt) {
       f.angularVel.z = -f.vel.x / f.radius;
     }
 
+    let onFruit = false;
+    if (!onCupFloor && !onTable) {
+      for (const other of fallingFruits) {
+        if (other === f || !other.mesh) continue;
+        const fdx = f.pos.x - other.pos.x;
+        const fdy = f.pos.y - other.pos.y;
+        const fdz = f.pos.z - other.pos.z;
+        const fdist = Math.hypot(fdx, fdy, fdz);
+        if (fdist <= f.radius + other.radius + 0.12 && fdy > f.radius * 0.2) {
+          onFruit = true;
+          break;
+        }
+      }
+    }
+
+    if (onFruit) {
+      const hSpeed = Math.hypot(f.vel.x, f.vel.z);
+      if (hSpeed > 1e-9) {
+        const frictionDecel = 0.5 * Math.abs(GRAVITY) * dt;
+        const reduce = Math.min(frictionDecel, hSpeed);
+        f.vel.x -= (f.vel.x / hSpeed) * reduce;
+        f.vel.z -= (f.vel.z / hSpeed) * reduce;
+      }
+      f.angularVel.multiplyScalar(0.85);
+    }
+
     f.vel.multiplyScalar(linDamp);
     f.angularVel.multiplyScalar(angDamp);
     clampAngularVel(f);
