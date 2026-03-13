@@ -26,7 +26,7 @@ export function createFaceDecals(sphereMesh, fruitName, faceMaterials, {
     );
 
     const decalMesh = new THREE.Mesh(decalGeo, faceMaterials[fruitName]);
-    decalMesh.renderOrder = 3;
+    decalMesh.renderOrder = 2;
     decalMesh.material.depthTest = true;
 
     decalMesh.geometry.applyMatrix4(sphereMesh.matrixWorld.clone().invert());
