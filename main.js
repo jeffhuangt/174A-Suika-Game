@@ -20,8 +20,6 @@ const POSITION_EPS = 0.0005;
 const COLLISION_PASSES = 15;
 const TOP_OUT_LIMIT = 2.0; // seconds above rime before losing
 
-const SETTLE_SPEED = 0.08; // below this, fruit is consider to be at rest
-const ANGULAR_DAMPING = 0.97; // when in air, spin decays
 const COLLISION_SPIN = 0.35; // how much collision impulse becomes rotation
 
 const ROLLING_GRIP = 12.0;
@@ -30,10 +28,9 @@ const SPIN_TRANSFER = 0.015;
 
 const timer = new THREE.Timer();
 const fallingFruits = [];
-let activeFruit = null;
-
 let gameOver = false;
 let topOutTime = 0;
+let lastDropTime = 0;
 
 let score = 0;
 const fruitScores = {
@@ -604,15 +601,6 @@ function resolveFruitFruitCollisions(fruits) {
       const vRelZ = a.vel.z - b.vel.z;
       const vn = vRelX * normx + vRelY * normy + vRelZ * normz;
 
-      if (Math.abs(normy) > 0.6) {
-        if (a.pos.y > b.pos.y) {
-          a.hasSupport = true;
-        } else {
-          b.hasSupport = true;
-        }
-      }
-
-      // no collision
       if (vn >= 0){
         continue;
       }
@@ -682,11 +670,8 @@ function hasFruitAboveOpening() {
 window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
-  if(gameOver || !previewMesh) return;
-  if(activeFruit && !fallingFruits.includes(activeFruit)) {
-    activeFruit = null;
-  }
-  if (activeFruit) return;
+  if (gameOver || !previewMesh) return;
+  if (performance.now() - lastDropTime < 250) return;
 
   const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
@@ -715,19 +700,13 @@ function spawnFruit() {
     vel: new THREE.Vector3(0, 0, 0),
     mass: radius * radius,
     isSettled: false,
-    hasSupport: false,
-    lastY: mesh.position.y,
-    stableFrames: 0,
-    age: 0,
-    dropUnlocked: false,
     sleepFrames: 0,
     prevPos: mesh.position.clone(),
     angularVel: new THREE.Vector3(0, 0, 0),
-    quat: new THREE.Quaternion(),
   }
 
   fallingFruits.push(fruitObj);
-  activeFruit = fruitObj;
+  lastDropTime = performance.now();
 
   playDropSound();
 
@@ -938,30 +917,6 @@ function animate() {
       f.prevPos.copy(f.pos);
   }
 
-  if (activeFruit && activeFruit.mesh) {
-    activeFruit.age += dt;
-
-    const supported = isFruitSupported(activeFruit, fallingFruits, cup, tableTopY);
-    const dyFrame = Math.abs(activeFruit.pos.y - activeFruit.lastY);
-
-    if (supported && dyFrame < 0.01) {
-      activeFruit.stableFrames += 1;
-    } else {
-      activeFruit.stableFrames = 0;
-    }
-
-    activeFruit.lastY = activeFruit.pos.y;
-
-    // only unlock spawning; do NOT freeze physics here
-    if (!activeFruit.dropUnlocked && (
-      activeFruit.stableFrames >= 6 ||
-      (supported && activeFruit.age > 0.35)
-    )) {
-      activeFruit.dropUnlocked = true;
-      activeFruit = null;
-    }
-  }
-
   merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, fruitScores, addScore, mergeSound });
 
   if (!gameOver) {
@@ -970,16 +925,11 @@ function animate() {
 
       if (topOutTime >= TOP_OUT_LIMIT) {
         gameOver = true;
-        activeFruit = null;
         clearPreview();
       }
     } else {
       topOutTime = 0;
     }
-  }
-  
-  if(activeFruit && !fallingFruits.includes(activeFruit)) {
-    activeFruit = null;
   }
 
   controls.update();
