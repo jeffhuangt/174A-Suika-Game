@@ -2,28 +2,14 @@ import * as THREE from 'three';
 import { setupScene } from './setupScene.js';
 import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { merge } from './merge.js';
+import { GRAVITY, RESTITUTION_TABLE, FRICTION_TABLE, LINEAR_DAMPING, SLEEP_SPEED, SLEEP_FRAMES, POSITION_EPS, COLLISION_PASSES, TOP_OUT_LIMIT, ROLLING_GRIP, SPIN_TRANSFER } from './constants.js';
+import { fruitScores, addScore } from './ui.js';
+import { makeCup } from './cup.js';
+import { cupWallCollision, resolveFruitFruitCollisions, isFruitSupported } from './physics.js';
 
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
-
-const GRAVITY = -25;
-const RESTITUTION_TABLE = 0.25; // bounce on table
-const RESTITUTION_FRUIT = 0.4; // fruit-fruit bounce
-const FRICTION_TABLE = 0.15; // horizontal slowdown on table hit
-const LINEAR_DAMPING = 0.995; // global damping each frame
-const FRUIT_COLLIDE_EPS = 0.001; // penetration tolerance for fruit-fruit
-const SLEEP_SPEED = 0.03;
-const SLEEP_FRAMES = 20;
-const POSITION_EPS = 0.0005;
-const COLLISION_PASSES = 15;
-const TOP_OUT_LIMIT = 2.0; // seconds above rime before losing
-
-const COLLISION_SPIN = 0.35; // how much collision impulse becomes rotation
-
-const ROLLING_GRIP = 12.0;
-const SPIN_TRANSFER = 0.015;
 
 
 const timer = new THREE.Timer();
@@ -31,21 +17,6 @@ const fallingFruits = [];
 let gameOver = false;
 let topOutTime = 0;
 let lastDropTime = 0;
-
-let score = 0;
-const fruitScores = {
-  cherry: 1,
-  strawberry: 3,
-  grape: 6,
-  orange: 10,
-  persimmon: 15,
-  apple: 21,
-  pear: 28,
-  peach: 36,
-  pineapple: 45,
-  melon: 55,
-  watermelon: 66,
-}
 
 const dropSound = new Audio('sounds/drop.mp3');
 const mergeSound = new Audio('sounds/merge.mp3');
@@ -65,112 +36,6 @@ function playDropSound() {
 
 document.body.style.margin = '0';
 document.body.style.overflow = 'hidden';
-
-let bestScore = Number(localStorage.getItem('suikaBestScore') || 0);
-
-const scoreHud = document.createElement('div');
-scoreHud.style.position = 'fixed';
-scoreHud.style.top = '18px';
-scoreHud.style.left = '18px';
-scoreHud.style.width = '170px';
-scoreHud.style.height = '170px';
-scoreHud.style.borderRadius = '50%';
-scoreHud.style.zIndex = '99999';
-scoreHud.style.pointerEvents = 'none';
-scoreHud.style.display = 'flex';
-scoreHud.style.flexDirection = 'column';
-scoreHud.style.alignItems = 'center';
-scoreHud.style.justifyContent = 'center';
-scoreHud.style.fontFamily = `'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif`;
-scoreHud.style.color = '#145caa';
-scoreHud.style.background = `
-  radial-gradient(circle at 32% 28%,
-    rgba(255,255,255,0.96) 0%,
-    rgba(240,248,255,0.82) 10%,
-    rgba(214,233,248,0.56) 24%,
-    rgba(184,214,236,0.34) 54%,
-    rgba(150,192,224,0.22) 78%,
-    rgba(120,170,210,0.16) 100%)
-`;
-scoreHud.style.border = '3px solid rgba(255,255,255,0.55)';
-scoreHud.style.boxShadow = `
-  inset 0 10px 18px rgba(255,255,255,0.72),
-  inset 0 -10px 18px rgba(90,140,185,0.18),
-  0 4px 12px rgba(40,90,130,0.12)
-`;
-
-const bubbleHighlight1 = document.createElement('div');
-bubbleHighlight1.style.position = 'absolute';
-bubbleHighlight1.style.width = '34px';
-bubbleHighlight1.style.height = '20px';
-bubbleHighlight1.style.top = '26px';
-bubbleHighlight1.style.left = '24px';
-bubbleHighlight1.style.borderRadius = '50%';
-bubbleHighlight1.style.background = 'rgba(255,255,255,0.78)';
-bubbleHighlight1.style.transform = 'rotate(-28deg)';
-bubbleHighlight1.style.filter = 'blur(1px)';
-
-const bubbleHighlight2 = document.createElement('div');
-bubbleHighlight2.style.position = 'absolute';
-bubbleHighlight2.style.width = '24px';
-bubbleHighlight2.style.height = '14px';
-bubbleHighlight2.style.right = '24px';
-bubbleHighlight2.style.bottom = '28px';
-bubbleHighlight2.style.borderRadius = '50%';
-bubbleHighlight2.style.background = 'rgba(255,255,255,0.62)';
-bubbleHighlight2.style.transform = 'rotate(28deg)';
-bubbleHighlight2.style.filter = 'blur(1px)';
-
-const scoreTitle = document.createElement('div');
-scoreTitle.textContent = 'Score';
-scoreTitle.style.fontSize = '26px';
-scoreTitle.style.fontWeight = '800';
-scoreTitle.style.lineHeight = '1';
-scoreTitle.style.marginBottom = '8px';
-scoreTitle.style.textShadow = '0 2px 0 rgba(255,255,255,0.8), 0 0 4px rgba(0,0,0,0.18)';
-
-const scoreValue = document.createElement('div');
-scoreValue.textContent = `${score}`;
-scoreValue.style.fontSize = '54px';
-scoreValue.style.fontWeight = '900';
-scoreValue.style.lineHeight = '1';
-scoreValue.style.marginBottom = '10px';
-scoreValue.style.textShadow = '0 2px 0 rgba(255,255,255,0.8), 0 0 6px rgba(0,0,0,0.18)';
-
-const bestLabel = document.createElement('div');
-bestLabel.textContent = 'BEST SCORE';
-bestLabel.style.fontSize = '14px';
-bestLabel.style.fontWeight = '800';
-bestLabel.style.letterSpacing = '0.5px';
-bestLabel.style.opacity = '0.72';
-bestLabel.style.lineHeight = '1';
-
-const bestValue = document.createElement('div');
-bestValue.textContent = `${bestScore}`;
-bestValue.style.fontSize = '18px';
-bestValue.style.fontWeight = '900';
-bestValue.style.marginTop = '4px';
-bestValue.style.lineHeight = '1';
-bestValue.style.textShadow = '0 1px 0 rgba(255,255,255,0.8)';
-
-scoreHud.appendChild(bubbleHighlight1);
-scoreHud.appendChild(bubbleHighlight2);
-scoreHud.appendChild(scoreTitle);
-scoreHud.appendChild(scoreValue);
-scoreHud.appendChild(bestLabel);
-scoreHud.appendChild(bestValue);
-document.body.appendChild(scoreHud);
-
-function addScore(points) {
-  score += points;
-  scoreValue.textContent = `${score}`;
-
-  if (score > bestScore) {
-    bestScore = score;
-    bestValue.textContent = `${bestScore}`;
-    localStorage.setItem('suikaBestScore', String(bestScore));
-  }
-}
 
 function generateSphereGeometries(numSpheres, radius, scale) {
   const geometries = [];
@@ -208,105 +73,6 @@ table.position.y = - (tableThickness / 2) - 8.0;
 const tableBox = new THREE.Box3().setFromObject(table);
 const tableTopY = tableBox.max.y;
 scene.add(table);
-
-export function makeCup({ 
-  height = 30,
-  radiusBottom = 12,
-  radiusTop = 15, 
-  wall = 0.15, 
-  bottom = 0.25,
-  segments = 160,
-  rimLip = 0.06,
-} = {}) {
-
-  const innerBottomR = Math.max(0.01, radiusBottom - wall);
-  const innerTopR = Math.max(0.01, radiusTop - wall);
-  const outerTopR = radiusTop + rimLip;
-
-  // Outer wall only (no axis points)
-  const outerPts = [
-    new THREE.Vector2(radiusBottom, 0.0),
-    new THREE.Vector2(radiusBottom + 0.05, 0.15),
-    new THREE.Vector2(radiusBottom + 0.10, 0.35),
-    new THREE.Vector2(radiusTop - 0.10, height - 0.35),
-    new THREE.Vector2(radiusTop, height - 0.10),
-    new THREE.Vector2(outerTopR, height),
-  ];
-
-  // Inner wall only (no axis points)
-  const innerPts = [
-    new THREE.Vector2(innerBottomR, bottom),
-    new THREE.Vector2(innerBottomR + 0.04, bottom + 0.20),
-    new THREE.Vector2(innerTopR - 0.06, height - 0.35),
-    new THREE.Vector2(innerTopR, height),
-  ];
-
-  const outerWall = lathe(outerPts, segments);
-  const innerWall = flipGeometry(lathe(innerPts, segments));
-
-  // Bottom thickness side (connects outer bottom edge to inner bottom edge)
-  const bottomSide = lathe([
-    new THREE.Vector2(radiusBottom, 0.0),
-    new THREE.Vector2(innerBottomR, bottom),
-  ], segments);
-
-  // Outside bottom
-  const outerBottom = new THREE.CircleGeometry(radiusBottom, segments);
-  outerBottom.rotateX(-Math.PI / 2);
-  outerBottom.translate(0, 0, 0);
-  outerBottom.computeVertexNormals();
-
-  // Inside floor
-  const innerBottom = new THREE.CircleGeometry(innerBottomR, segments);
-  innerBottom.rotateX(Math.PI / 2);
-  innerBottom.translate(0, bottom, 0);
-  innerBottom.computeVertexNormals();
-
-  // Top rim thickness
-  const rim = new THREE.RingGeometry(innerTopR, outerTopR, segments);
-  rim.rotateX(Math.PI / 2);
-  rim.translate(0, height, 0);
-  rim.computeVertexNormals();
-
-  const cupGeometry = mergeGeometries(
-    [outerWall, innerWall, bottomSide, outerBottom, innerBottom, rim],
-    false
-  );
-  cupGeometry.computeVertexNormals();
-
-  const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, //0xe8f6ff,
-    transmission: 1.0,
-    thickness: wall,
-    roughness: 0.02,
-    metalness: 0.0,
-    ior: 1.5,
-    transparent: true,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.01,
-    envMapIntensity: 1.5,
-    depthWrite: false,
-    depthTest: true,
-    side: THREE.FrontSide,
-  });
-
-  const cupMesh = new THREE.Mesh(cupGeometry, glassMaterial);
-  cupMesh.renderOrder = 3;
-  cupMesh.castShadow = true;
-  cupMesh.receiveShadow = true;
-
-  const cup = new THREE.Group();
-  cup.add(cupMesh);
-
-  cup.userData.cup = {
-    height,
-    bottom,
-    innerBottomR,
-    innerTopR,
-  };
-
-  return cup;
-}
 
 const cup = makeCup({ height: 30, wall:0.15, bottom: 0.25 });
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
@@ -412,19 +178,6 @@ let nextFruitIndex = Math.floor(Math.random() * maxFruitIndex);
 let previewMesh = null;
 let previewGuideLine = null;
 
-function lathe(points, segments) {
-  const g = new THREE.LatheGeometry(points, segments);
-  g.rotateY(Math.PI / segments);
-  g.computeVertexNormals();
-  return g;
-}
-
-function flipGeometry(g) {
-  g.scale(-1, 1, 1);
-  g.computeVertexNormals();
-  return g;
-}
-
 function updatePreviewMesh() {
   if (gameOver) {
     clearPreview();
@@ -490,149 +243,6 @@ function onPointerMove(event) {
     clampPreviewToCup(target, previewRadius);
     previewMesh.position.copy(target);
     previewMesh.position.y = planeHeight;
-  }
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function innerRadiusAtY(cupData, yLocal) {
-  const t = clamp((yLocal - cupData.bottom) / (cupData.height - cupData.bottom), 0, 1);
-  return cupData.innerBottomR + t * (cupData.innerTopR - cupData.innerBottomR);
-}
-
-function cupWallCollision(f) {
-  const cupData = cup.userData.cup;
-
-  const cupBaseY = cup.position.y;
-  const yLocal = f.pos.y - cupBaseY;
-
-  if (yLocal < cupData.bottom || yLocal > cupData.height) return;
-
-  const innerR = innerRadiusAtY(cupData, yLocal);
-  const allowedR = innerR - f.radius;
-
-  const dx = f.pos.x - cup.position.x;
-  const dz = f.pos.z - cup.position.z;
-
-  const r = Math.hypot(dx, dz);
-
-  if (r <= allowedR || r < 1e-6) return;
-
-  // wall normals
-  const nx = dx / r;
-  const nz = dz / r;
-
-  // push fruit back inside
-  const correctedR = allowedR + 0.001;
-
-  f.pos.x = cup.position.x + nx * correctedR;
-  f.pos.z = cup.position.z + nz * correctedR;
-
-  const v = f.vel;
-
-  const vn = v.x * nx + v.z * nz;
-
-  if (vn > 0) return;
-
-  v.x -= (1 + 0.25) * vn * nx;
-  v.z -= (1 + 0.25) * vn * nz;
-
-  // spin from wall impact (axis = wall normal × up)
-  if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
-  const wallSpin = (Math.abs(vn) * COLLISION_SPIN) / f.radius;
-  f.angularVel.x += nz * wallSpin;
-  f.angularVel.z -= nx * wallSpin;
-
-  // wall friction
-  v.x *= 0.92;
-  v.z *= 0.92;
-}
-
-function resolveFruitFruitCollisions(fruits) {
-  const n = fruits.length;
-
-  for (let i = 0; i < n; i++) {
-    const a = fruits[i];
-    if (!a.mesh) continue;
-
-    for (let j = i + 1; j < n; j++) {
-      const b = fruits[j];
-      if (!b.mesh) continue;
-
-      const dx = a.pos.x - b.pos.x;
-      const dy = a.pos.y - b.pos.y;
-      const dz = a.pos.z - b.pos.z;
-      const dist = Math.hypot(dx, dy, dz);
-      const minDist = a.radius + b.radius + FRUIT_COLLIDE_EPS;
-
-      if (dist >= minDist || dist < 1e-9){
-        continue;
-      }
-
-      a.isSettled = false;
-      b.isSettled = false;
-      a.sleepFrames = 0;
-      b.sleepFrames = 0;
-
-      const normx = dx / dist;
-      const normy = dy / dist;
-      const normz = dz / dist;
-
-      // push apart the mass
-      const overlap = Math.max(0, minDist - dist - 0.0005);
-      const totalMass = a.mass + b.mass;
-      const ratioA = b.mass / totalMass;
-      const ratioB = a.mass / totalMass;
-      
-      a.pos.x += normx * overlap * ratioA;
-      a.pos.y += normy * overlap * ratioA;
-      a.pos.z += normz * overlap * ratioA;
-      
-      b.pos.x -= normx * overlap * ratioB;
-      b.pos.y -= normy * overlap * ratioB;
-      b.pos.z -= normz * overlap * ratioB;
-
-      // calculate the impulse
-      const vRelX = a.vel.x - b.vel.x;
-      const vRelY = a.vel.y - b.vel.y;
-      const vRelZ = a.vel.z - b.vel.z;
-      const vn = vRelX * normx + vRelY * normy + vRelZ * normz;
-
-      if (vn >= 0){
-        continue;
-      }
-
-      if (vn > -1.0) {
-        const invMassSum = (1 / a.mass) + (1 / b.mass);
-        const jRest = -vn / invMassSum;
-
-        a.vel.x += (jRest / a.mass) * normx;
-        a.vel.y += (jRest / a.mass) * normy;
-        a.vel.z += (jRest / a.mass) * normz;
-        
-        b.vel.x -= (jRest / b.mass) * normx;
-        b.vel.y -= (jRest / b.mass) * normy;
-        b.vel.z -= (jRest / b.mass) * normz;
-
-        continue;
-      }
-
-      // wake up and bounce fruit if involved large impact
-      a.isSettled = false;
-      b.isSettled = false;
-
-      const jMag = -(1 + RESTITUTION_FRUIT) * vn / ((1 / a.mass) + (1 / b.mass));
-      
-      a.vel.x += (jMag / a.mass) * normx;
-      a.vel.y += (jMag / a.mass) * normy;
-      a.vel.z += (jMag / a.mass) * normz;
-      
-      b.vel.x -= (jMag / b.mass) * normx;
-      b.vel.y -= (jMag / b.mass) * normy;
-      b.vel.z -= (jMag / b.mass) * normz;
-    }
   }
 }
 
@@ -726,38 +336,6 @@ function spawnFruit() {
   }
 }
 
-function isFruitSupported(f, fruits, cup, tableTopY) {
-  const cupData = cup.userData.cup;
-  const cupBaseY = cup.position.y;
-  const cupInnerBottomY = cupBaseY + cupData.bottom;
-
-  const dxCup = f.pos.x - cup.position.x;
-  const dzCup = f.pos.z - cup.position.z;
-  const rXZ = Math.hypot(dxCup, dzCup);
-  const overCupOpening = rXZ <= (cupData.innerTopR - f.radius);
-
-  // table or cup bottom
-  if (f.pos.y - f.radius <= tableTopY + 0.08) return true;
-  if (overCupOpening && f.pos.y - f.radius <= cupInnerBottomY + 0.08) return true;
-
-  // another fruit
-  for (const other of fruits) {
-    if (other === f || !other.mesh) continue;
-
-    const dx = f.pos.x - other.pos.x;
-    const dy = f.pos.y - other.pos.y;
-    const dz = f.pos.z - other.pos.z;
-    const dist = Math.hypot(dx, dy, dz);
-    const minDist = f.radius + other.radius;
-
-    if (dist <= minDist + 0.12 && dy > -0.02) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 window.addEventListener('keydown', (event) => {
   if (event.code === 'Space') spawnFruit();
 });
@@ -830,7 +408,7 @@ function animate() {
       continue;
     }
 
-    cupWallCollision(f);
+    cupWallCollision(f, cup);
 
     const cupData = cup.userData.cup;
     const cupBaseY = cup.position.y;
