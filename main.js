@@ -362,32 +362,46 @@ const tableTopY = tableBox.max.y;
 scene.add(table);
 
 const floorY = tableTopY - tableThickness;
-const roomWallColor = 0xaee9ff;
 const roomW = 160, roomD = 130, roomH = 70;
 const roomZ0 = -roomD / 2, roomZ1 = roomD / 2;
 const roomX0 = -roomW / 2, roomX1 = roomW / 2;
 const roomZC = (roomZ0 + roomZ1) / 2;
 const roomYC = floorY + roomH / 2;
-const wallMat = new THREE.MeshStandardMaterial({ color: roomWallColor, roughness: 0.9 });
 
-const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+const textureLoader = new THREE.TextureLoader();
+
+const backTex = textureLoader.load('textures/back.png');
+backTex.colorSpace = THREE.SRGBColorSpace;
+const frontTex = textureLoader.load('textures/front.png');
+frontTex.colorSpace = THREE.SRGBColorSpace;
+const sidesTex = textureLoader.load('textures/sides.png');
+sidesTex.colorSpace = THREE.SRGBColorSpace;
+const skyTex = textureLoader.load('textures/sky.png');
+skyTex.colorSpace = THREE.SRGBColorSpace;
+
+const backWallMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.9 });
+const frontWallMat = new THREE.MeshStandardMaterial({ map: frontTex, roughness: 0.9 });
+const sideWallMat = new THREE.MeshStandardMaterial({ map: sidesTex, roughness: 0.9 });
+const skyMat = new THREE.MeshStandardMaterial({ map: skyTex, roughness: 0.9 });
+
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), backWallMat);
 backWall.position.set(0, roomYC, roomZ0);
 backWall.receiveShadow = true;
 scene.add(backWall);
 
-const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), frontWallMat);
 frontWall.rotation.y = Math.PI;
 frontWall.position.set(0, roomYC, roomZ1);
 frontWall.receiveShadow = true;
 scene.add(frontWall);
 
-const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), sideWallMat);
 leftWall.rotation.y = Math.PI / 2;
 leftWall.position.set(roomX0, roomYC, roomZC);
 leftWall.receiveShadow = true;
 scene.add(leftWall);
 
-const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), sideWallMat.clone());
 rightWall.rotation.y = -Math.PI / 2;
 rightWall.position.set(roomX1, roomYC, roomZC);
 rightWall.receiveShadow = true;
@@ -401,7 +415,7 @@ floor.position.set(0, floorY, roomZC);
 floor.receiveShadow = true;
 scene.add(floor);
 
-const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), wallMat);
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), skyMat);
 ceiling.rotation.x = Math.PI / 2;
 ceiling.position.set(0, floorY + roomH, roomZC);
 ceiling.receiveShadow = true;
