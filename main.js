@@ -13,6 +13,8 @@ import { stepPhysics, isFruitSupported } from './physics.js';
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
 
+const textureLoader = new THREE.TextureLoader();
+
 // create mini camera
 const cupOuterRadius = 11.2;
 const miniCamera = new THREE.OrthographicCamera(-cupOuterRadius, cupOuterRadius, cupOuterRadius, -cupOuterRadius, 0.1, 100);
@@ -195,7 +197,7 @@ document.body.appendChild(nextHud);
 
 const soundBtn = document.createElement('button');
 soundBtn.style.position = 'fixed';
-soundBtn.style.bottom = '178px';
+soundBtn.style.bottom = '250px';
 soundBtn.style.left = '20px';
 soundBtn.style.zIndex = '99999';
 soundBtn.style.width = '58px';
@@ -314,10 +316,54 @@ legend.innerHTML = `
     <b style="color: #0b3d75;">Space</b>: Drop fruit<br>
     <b style="color: #0b3d75;">t, f, b, l, r</b>: Snap Camera<br>
     <b style="color: #0b3d75;">d</b>: Toggle drop delay<br>
-    <b style="color: #0b3d75;">p</b>: Toggle indicator planes
+    <b style="color: #0b3d75;">v</b>: Toggle indicator planes<br>
+    <b style="color: #0b3d75;">p</b>: Toggle powerups<br>
+    <b style="color: #0b3d75;">s</b>: Use stored fruit
   </div>
 `;
 document.body.appendChild(legend);
+
+// --- Powerups HUD UI ---
+const powerupHud = document.createElement('div');
+powerupHud.style.position = 'fixed';
+powerupHud.style.bottom = '20px';
+powerupHud.style.left = '250px';
+powerupHud.style.color = '#145caa';
+powerupHud.style.fontFamily = `'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif`;
+powerupHud.style.background = `
+  radial-gradient(circle at 10% 10%,
+    rgba(255,255,255,0.95) 0%,
+    rgba(240,248,255,0.85) 40%,
+    rgba(214,233,248,0.7) 100%)
+`;
+powerupHud.style.padding = '12px 18px';
+powerupHud.style.borderRadius = '12px';
+powerupHud.style.boxShadow = `
+  inset 0 4px 10px rgba(255,255,255,0.8),
+  0 6px 16px rgba(40,90,130,0.15)
+`;
+powerupHud.style.border = '2px solid rgba(255,255,255,0.6)';
+powerupHud.style.zIndex = '99999';
+powerupHud.style.pointerEvents = 'none';
+
+powerupHud.innerHTML = `
+  <div style="font-weight: 800; font-size: 16px; margin-bottom: 8px; border-bottom: 2px solid rgba(20,92,170,0.2); padding-bottom: 4px;">Powerups</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: flex-start; gap: 10px;">
+      <img src="textures/level-up.png" style="width: 28px; height: 28px;">
+      <div style="font-size: 13px; line-height: 1.2;"><b>Level Up</b><br>Upgrades fruit</div>
+    </div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;">
+      <img src="textures/bin.png" style="width: 28px; height: 28px;">
+      <div style="font-size: 13px; line-height: 1.2;"><b>Trash</b><br>Deletes all same-type fruits</div>
+    </div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;">
+      <img src="textures/open-box.png" style="width: 28px; height: 28px;">
+      <div style="font-size: 13px; line-height: 1.2;"><b>Storage</b><br>Stores fruit for later</div>
+    </div>
+  </div>
+`;
+document.body.appendChild(powerupHud);
 
 const nextScene = new THREE.Scene();
 
@@ -347,6 +393,42 @@ nextRim.position.set(-4, 2, 3);
 nextScene.add(nextRim);
 
 let nextFruitMesh = null;
+
+let powerupsEnabled = true;
+let storedFruitType = null;
+const activePowerups = [];
+
+const powerupTextures = {
+  'level-up': textureLoader.load('textures/level-up.png'),
+  'bin': textureLoader.load('textures/bin.png'),
+  'open-box': textureLoader.load('textures/open-box.png')
+};
+
+Object.values(powerupTextures).forEach(tex => {
+  tex.colorSpace = THREE.SRGBColorSpace;
+});
+
+const powerupMaterials = {
+  'level-up': new THREE.SpriteMaterial({ map: powerupTextures['level-up'], color: 0xffffff }),
+  'bin': new THREE.SpriteMaterial({ map: powerupTextures['bin'], color: 0xffffff }),
+  'open-box': new THREE.SpriteMaterial({ map: powerupTextures['open-box'], color: 0xffffff })
+};
+
+function createPowerupMesh(type, radius = 1.0) {
+  const group = new THREE.Group();
+
+  // collision sphere visualization
+  const sphereGeom = new THREE.SphereGeometry(radius, 16, 16);
+  const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.3 });
+  const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+  group.add(sphere);
+
+  const sprite = new THREE.Sprite(powerupMaterials[type]);
+  sprite.scale.set(radius * 2, radius * 2, 1);
+  group.add(sprite);
+
+  return { mesh: group, type, radius, sleepFrames: 0 };
+}
 
 function generateSphereGeometries(numSpheres, radius, scale) {
   const geometries = [];
@@ -414,8 +496,6 @@ const roomZ0 = -roomD / 2, roomZ1 = roomD / 2;
 const roomX0 = -roomW / 2, roomX1 = roomW / 2;
 const roomZC = (roomZ0 + roomZ1) / 2;
 const roomYC = floorY + roomH / 2;
-
-const textureLoader = new THREE.TextureLoader();
 
 const side1Tex = textureLoader.load('textures/kitchen_wall_2.png');
 side1Tex.colorSpace = THREE.SRGBColorSpace;
@@ -610,10 +690,10 @@ scene.add(dangerPlane);
 function updateLevelPlanesAndCamera() {
   cupData = cup.userData.cup;
   cup.position.set(0, tableTopY + cupData.bottom, 0);
-  
+
   // Set Danger Plane Height mapping
   dangerPlane.position.y = cup.position.y + cupData.bottom + (cupData.height - cupData.bottom) * 0.80;
-  
+
   // Scale planes to new cup width
   highestFruitPlane.scale.set(cupData.innerTopR - 0.2, 1, cupData.innerTopR - 0.2);
   dangerPlane.scale.set(cupData.innerTopR - 0.2, 1, cupData.innerTopR - 0.2);
@@ -631,7 +711,7 @@ updateLevelPlanesAndCamera();
 function loadLevel(type) {
   // Remove existing cup
   scene.remove(cup);
-  
+
   // Create new cup
   if (type === 'bowl') {
     cup = makeFluidCup();
@@ -640,13 +720,13 @@ function loadLevel(type) {
   } else {
     cup = makeClassicCup();
   }
-  
+
   cup.receiveShadow = true;
   cup.castShadow = false;
   scene.add(cup);
-  
+
   updateLevelPlanesAndCamera();
-  
+
   // Reset Game State
   fallingFruits.forEach(f => {
     if (f.mesh) {
@@ -656,7 +736,7 @@ function loadLevel(type) {
     }
   });
   fallingFruits.length = 0;
-  
+
   // Reset score and load best for this level
   setLevel(type);
 
@@ -962,6 +1042,24 @@ function spawnFruit() {
   playDropSound();
   tryStartMusic();
 
+  if (powerupsEnabled && Math.random() < 0.1) {
+    const powerupTypes = ['level-up', 'bin', 'open-box'];
+    const type = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+    const powerup = createPowerupMesh(type, 1.2);
+
+    const cupData = cup.userData.cup;
+    const r = Math.random() * (cupData.innerTopR - powerup.radius - 0.2);
+    const theta = Math.random() * Math.PI * 2;
+    powerup.mesh.position.set(
+      cup.position.x + r * Math.cos(theta),
+      cup.position.y + cupData.height - 2.0,
+      cup.position.z + r * Math.sin(theta)
+    );
+
+    scene.add(powerup.mesh);
+    activePowerups.push(powerup);
+  }
+
   // update next fruit
   currentFruitIndex = nextFruitIndex;
   nextFruitIndex = Math.floor(Math.random() * 5);
@@ -992,7 +1090,17 @@ window.addEventListener('keydown', (event) => {
       spawnDelayEnabled = !spawnDelayEnabled;
       break;
     case 'p':
+      powerupsEnabled = !powerupsEnabled;
+      break;
+    case 'v':
       showPlanes = !showPlanes;
+      break;
+    case 's':
+      if (storedFruitType) {
+        nextFruitIndex = fruitOrder.indexOf(storedFruitType);
+        storedFruitType = null;
+        updateNextFruitHud();
+      }
       break;
     case 't':
       camera.position.set(0, 45, 0.1); // top view
@@ -1065,7 +1173,7 @@ function animate() {
     for (const f of fallingFruits) {
       if (!f.mesh) continue;
       const onFloor = f.pos.y - f.radius <= cupBottomY + 0.5 ||
-                      isFruitSupported(f, fallingFruits, cup, tableTopY);
+        isFruitSupported(f, fallingFruits, cup, tableTopY);
       if (!onFloor) continue;
 
       const relVelX = cupVelX - f.vel.x;
@@ -1084,6 +1192,83 @@ function animate() {
 
     shakePrevX = newX;
     shakePrevZ = newZ;
+  }
+
+  // --- Process Powerups ---
+  for (let i = activePowerups.length - 1; i >= 0; i--) {
+    const pu = activePowerups[i];
+
+    // Check collisions with fruits
+    let hitRadius = pu.radius * 0.9;
+    let hitFruitIndex = -1;
+    for (let j = 0; j < fallingFruits.length; j++) {
+      const f = fallingFruits[j];
+      if (!f.mesh) continue;
+      const dist = f.pos.distanceTo(pu.mesh.position);
+      if (dist < f.radius + hitRadius) {
+        hitFruitIndex = j;
+        break; // first hit
+      }
+    }
+
+    if (hitFruitIndex !== -1) {
+      const hitFruit = fallingFruits[hitFruitIndex];
+      const type = pu.type;
+
+      if (type === 'level-up') {
+        // Upgrade the fruit to the next size (if not max)
+        const oldIndex = fruitOrder.indexOf(hitFruit.mesh.userData.fruitName);
+        if (oldIndex >= 0 && oldIndex < fruitOrder.length - 1) {
+          const newName = fruitOrder[oldIndex + 1];
+          const newGeo = sphereGeometries[oldIndex + 1];
+          const newMat = fruitMaterials[newName];
+          hitFruit.mesh.geometry = newGeo;
+          hitFruit.mesh.material = newMat;
+          hitFruit.mesh.userData.fruitName = newName;
+          hitFruit.radius = newGeo.parameters.radius;
+          hitFruit.mass = hitFruit.radius * hitFruit.radius;
+
+          // Recreate decals
+          for (let i = hitFruit.mesh.children.length - 1; i >= 0; i--) {
+            const child = hitFruit.mesh.children[i];
+            hitFruit.mesh.remove(child);
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+          }
+          createFaceDecals(hitFruit.mesh, newName, faceMaterials, { yaw: 0 });
+          hitFruit.mesh.children.forEach(c => c.renderOrder = 2);
+
+          // Slight vertical bump to avoid instant clipping issues from grown radius
+          hitFruit.pos.y += 0.5;
+          hitFruit.isSettled = false;
+        }
+      } else if (type === 'bin') {
+        // Delete all fruits of the same type
+        const targetName = hitFruit.mesh.userData.fruitName;
+        for (let j = fallingFruits.length - 1; j >= 0; j--) {
+          const f = fallingFruits[j];
+          if (f.mesh && f.mesh.userData.fruitName === targetName) {
+            scene.remove(f.mesh);
+            f.mesh.geometry.dispose();
+            f.mesh.material.dispose();
+            fallingFruits.splice(j, 1);
+          }
+        }
+        // Since hitFruit was also removed, break or handle it
+      } else if (type === 'open-box') {
+        // Store the hit fruit, remove it from the board
+        const targetName = hitFruit.mesh.userData.fruitName;
+        storedFruitType = targetName;
+        scene.remove(hitFruit.mesh);
+        hitFruit.mesh.geometry.dispose();
+        hitFruit.mesh.material.dispose();
+        fallingFruits.splice(hitFruitIndex, 1);
+      }
+
+      // Remove the powerup from scene and list
+      scene.remove(pu.mesh);
+      activePowerups.splice(i, 1);
+    }
   }
 
   for (const lb of lampBulbs) {
