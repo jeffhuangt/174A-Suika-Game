@@ -11,6 +11,31 @@ import { stepPhysics } from './physics.js';
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
 
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const topLight = new THREE.DirectionalLight(0xffffff, 0.4);
+topLight.position.set(0, 30, 0);
+topLight.target.position.set(0, 0, 0);
+topLight.castShadow = true;
+topLight.shadow.mapSize.width = 2048;
+topLight.shadow.mapSize.height = 2048;
+topLight.shadow.camera.near = 0.5;
+topLight.shadow.camera.far = 50;
+const d = 35;
+topLight.shadow.camera.left = -d;
+topLight.shadow.camera.right = d;
+topLight.shadow.camera.top = d;
+topLight.shadow.camera.bottom = -d;
+topLight.shadow.bias = -0.001;
+scene.add(topLight);
+scene.add(topLight.target);
+
+scene.children.forEach(c => {
+  if (c.isDirectionalLight && c !== topLight) {
+    if (c.position.y === 10) c.intensity = 1.1;
+  }
+});
 
 const timer = new THREE.Timer();
 const fallingFruits = [];
@@ -197,6 +222,7 @@ const tableMat = new THREE.MeshStandardMaterial({
 });
 
 const table = new THREE.Mesh(tableGeo, tableMat);
+table.receiveShadow = true;
 
 // since spheres sit at y = 0, lower the table
 table.position.y = - (tableThickness / 2) - 8.0;
@@ -216,21 +242,25 @@ const wallMat = new THREE.MeshStandardMaterial({ color: roomWallColor, roughness
 
 const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
 backWall.position.set(0, roomYC, roomZ0);
+backWall.receiveShadow = true;
 scene.add(backWall);
 
 const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
 frontWall.rotation.y = Math.PI;
 frontWall.position.set(0, roomYC, roomZ1);
+frontWall.receiveShadow = true;
 scene.add(frontWall);
 
 const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
 leftWall.rotation.y = Math.PI / 2;
 leftWall.position.set(roomX0, roomYC, roomZC);
+leftWall.receiveShadow = true;
 scene.add(leftWall);
 
 const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
 rightWall.rotation.y = -Math.PI / 2;
 rightWall.position.set(roomX1, roomYC, roomZC);
+rightWall.receiveShadow = true;
 scene.add(rightWall);
 
 const floorGeo = new THREE.PlaneGeometry(roomW, roomD);
@@ -238,14 +268,22 @@ const floorMat = new THREE.MeshStandardMaterial({ map: createCheckerTexture(), r
 const floor = new THREE.Mesh(floorGeo, floorMat);
 floor.rotation.x = -Math.PI / 2;
 floor.position.set(0, floorY, roomZC);
+floor.receiveShadow = true;
 scene.add(floor);
 
 const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), wallMat);
 ceiling.rotation.x = Math.PI / 2;
 ceiling.position.set(0, floorY + roomH, roomZC);
+ceiling.receiveShadow = true;
 scene.add(ceiling);
 
 const cup = makeCup({ height: 24, radiusBottom: 9, radiusTop: 11, wall:0.15, bottom: 0.25 });
+cup.traverse(c => {
+  if (c.isMesh) {
+    c.castShadow = false;
+    c.receiveShadow = true;
+  }
+});
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
 
@@ -314,6 +352,8 @@ sphereGeometries.forEach((geometry, index) => {
   const sphere = new THREE.Mesh(geometry, material);
 
   sphere.userData.fruitName = fruitName;
+  sphere.castShadow = true;
+  sphere.receiveShadow = true;
 
   const r = geometry.parameters.radius;
   xOffset += r + 1;
@@ -419,6 +459,7 @@ function updatePreviewMesh() {
   previewMesh.position.set(0, 18, 0);
   previewMesh.userData.fruitName = fruitName;
   previewMesh.renderOrder = 1;
+  previewMesh.castShadow = true;
   scene.add(previewMesh);
 
   createFaceDecals(previewMesh, fruitName, faceMaterials, { yaw: 0 });
@@ -512,6 +553,8 @@ function spawnFruit() {
   mesh.renderOrder = 1;
   mesh.material.depthWrite = true;
   mesh.userData.fruitName = fruitName;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
 
   // spawn at preview position
   mesh.position.copy(previewMesh.position);

@@ -18,17 +18,19 @@ export function merge({ scene,
     function spawnByIndex(fruitIndex, pos) {
         const fruitName = fruitOrder[fruitIndex];
         if (!fruitName) return;
-    
+
         const geometry = sphereGeometries[fruitIndex];
         const radius = geometry.parameters.radius;
-    
+
         const mat = fruitMaterials[fruitName];
         const mesh = new THREE.Mesh(geometry, mat);
         mesh.userData.fruitName = fruitName;
-    
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
         mesh.position.copy(pos);
         scene.add(mesh);
-    
+
         createFaceDecals(mesh, fruitName, faceMaterials, { yaw: 0 });
 
         const fruitObj = {
@@ -43,7 +45,7 @@ export function merge({ scene,
             angularVel: new THREE.Vector3(0, 0, 0),
             spawnTime: performance.now(),
         };
-    
+
         fallingFruits.push(fruitObj);
     }
 
@@ -60,7 +62,7 @@ export function merge({ scene,
             const dx = first.pos.x - second.pos.x;
             const dy = first.pos.y - second.pos.y;
             const dz = first.pos.z - second.pos.z;
-            
+
             const distSq = dx * dx + dy * dy + dz * dz;
             const rSum = first.radius + second.radius;
             const thr = (rSum + eps) * (rSum + eps);
@@ -77,7 +79,7 @@ export function merge({ scene,
             }
 
             mergeSound.currentTime = 0;
-            mergeSound.play().catch(()=>{});
+            mergeSound.play().catch(() => { });
 
             const mid = new THREE.Vector3()
                 .addVectors(first.pos, second.pos)
