@@ -7,8 +7,8 @@ import { TOP_OUT_LIMIT } from './constants.js';
 import { fruitScores, addScore } from './ui.js';
 import { makeClassicCup } from './levels/classic.js';
 import { makeBowlCup } from './levels/bowl.js';
-import { makeTallCup } from './levels/tall.js';
-import { stepPhysics } from './physics.js';
+import { makeEarthquakeCup } from './levels/shake.js';
+import { stepPhysics, isFruitSupported } from './physics.js';
 
 const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
@@ -274,13 +274,13 @@ optClassic.textContent = 'Classic Cup';
 const optBowl = document.createElement('option');
 optBowl.value = 'bowl';
 optBowl.textContent = 'Bowl Shape';
-const optTall = document.createElement('option');
-optTall.value = 'tall';
-optTall.textContent = 'Tall Glass';
+const optEarthquake = document.createElement('option');
+optEarthquake.value = 'earthquake';
+optEarthquake.textContent = 'Earthquake';
 
 levelSelector.appendChild(optClassic);
 levelSelector.appendChild(optBowl);
-levelSelector.appendChild(optTall);
+levelSelector.appendChild(optEarthquake);
 levelSelector.addEventListener('change', (e) => {
   levelSelector.blur(); // remove focus so spacebar drops fruit instead of toggling dropdown
   loadLevel(e.target.value);
@@ -626,8 +626,8 @@ function loadLevel(type) {
   // Create new cup
   if (type === 'bowl') {
     cup = makeBowlCup();
-  } else if (type === 'tall') {
-    cup = makeTallCup();
+  } else if (type === 'earthquake') {
+    cup = makeEarthquakeCup();
   } else {
     cup = makeClassicCup();
   }
@@ -652,6 +652,11 @@ function loadLevel(type) {
   const scoreKeys = Object.keys(fruitScores);
   scoreKeys.forEach(k => delete fruitScores[k]);
   addScore(0);
+
+  // Reset shake state
+  shakePrevX = 0;
+  shakePrevZ = 0;
+  shakeBaseY = 0;
 }
 
 function createDropGuide() {
@@ -1018,6 +1023,12 @@ window.addEventListener('resize', () => {
 
 let blinkTime = 0;
 
+let shakePrevX = 0;
+let shakePrevZ = 0;
+let cupVelX = 0;
+let cupVelZ = 0;
+let shakeBaseY = 0;
+
 function animate() {
 
   timer.update();
@@ -1025,6 +1036,49 @@ function animate() {
   const dt = Math.min(timer.getDelta(), 1 / 30); //0.033);
 
   const elapsed = timer.getElapsed();
+
+  const shake = cup.userData.shake;
+  if (shake && shake.enabled && !gameOver) {
+    if (shakeBaseY === 0) shakeBaseY = cup.position.y;
+    const freq = shake.speed * Math.PI * 2;
+    const newX = Math.sin(elapsed * freq) * shake.intensity;
+    const newZ = Math.cos(elapsed * freq * 0.7 + 1.3) * shake.intensity * 0.6;
+    const newY = shakeBaseY + Math.sin(elapsed * freq * 1.3 + 0.7) * shake.intensity * 0.35;
+
+    cupVelX = (newX - shakePrevX) / dt;
+    cupVelZ = (newZ - shakePrevZ) / dt;
+
+    cup.position.x = newX;
+    cup.position.z = newZ;
+    cup.position.y = newY;
+
+    const frictionCoeff = 0.45;
+    const cupData = cup.userData.cup;
+    const cupBottomY = cup.position.y + cupData.bottom;
+    for (const f of fallingFruits) {
+      if (!f.mesh) continue;
+      const onFloor = f.pos.y - f.radius <= cupBottomY + 0.5 ||
+                      isFruitSupported(f, fallingFruits, cup, tableTopY);
+      if (!onFloor) continue;
+
+      const relVelX = cupVelX - f.vel.x;
+      const relVelZ = cupVelZ - f.vel.z;
+      const maxFriction = frictionCoeff * Math.abs(-50) * dt;
+      const relSpeed = Math.hypot(relVelX, relVelZ);
+      if (relSpeed > 0.01) {
+        const impulse = Math.min(relSpeed, maxFriction);
+        f.vel.x += (relVelX / relSpeed) * impulse * 2.5;
+        f.vel.z += (relVelZ / relSpeed) * impulse * 2.5;
+      }
+
+      f.isSettled = false;
+      f.sleepFrames = 0;
+    }
+
+    shakePrevX = newX;
+    shakePrevZ = newZ;
+  }
+
   for (const lb of lampBulbs) {
     const flicker = 0.45 + 0.15 * Math.sin(elapsed * 8.3) + 0.1 * Math.sin(elapsed * 13.7) + 0.05 * Math.sin(elapsed * 23.1);
     lb.bulbMat.emissiveIntensity = flicker;
