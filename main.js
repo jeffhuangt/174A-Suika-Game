@@ -48,7 +48,29 @@ function generateSphereGeometries(numSpheres, radius, scale) {
   return geometries;
 }
 
-// create a table 
+function createCheckerTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 512;
+  const ctx = c.getContext('2d');
+
+  const size = 64;
+  const tiles = 512 / size;
+  for (let row = 0; row < tiles; row++) {
+    for (let col = 0; col < tiles; col++) {
+      ctx.fillStyle = (row + col) % 2 === 0 ? '#f0ddc5' : '#dfc0a0';
+      ctx.fillRect(col * size, row * size, size, size);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(5, 5);
+  return tex;
+}
+
 const tableWidth = 60;
 const tableDepth = 30;
 const tableThickness = 1.2;
@@ -74,7 +96,47 @@ const tableBox = new THREE.Box3().setFromObject(table);
 const tableTopY = tableBox.max.y;
 scene.add(table);
 
-const cup = makeCup({ height: 25, radiusBottom: 9, radiusTop: 11, wall:0.15, bottom: 0.25 });
+const floorY = tableTopY - tableThickness;
+const roomWallColor = 0xaee9ff;
+const roomW = 160, roomD = 130, roomH = 70;
+const roomZ0 = -40, roomZ1 = roomZ0 + roomD;
+const roomX0 = -roomW / 2, roomX1 = roomW / 2;
+const roomZC = (roomZ0 + roomZ1) / 2;
+const roomYC = floorY + roomH / 2;
+const wallMat = new THREE.MeshStandardMaterial({ color: roomWallColor, roughness: 0.9 });
+
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+backWall.position.set(0, roomYC, roomZ0);
+scene.add(backWall);
+
+const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+frontWall.rotation.y = Math.PI;
+frontWall.position.set(0, roomYC, roomZ1);
+scene.add(frontWall);
+
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+leftWall.rotation.y = Math.PI / 2;
+leftWall.position.set(roomX0, roomYC, roomZC);
+scene.add(leftWall);
+
+const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+rightWall.rotation.y = -Math.PI / 2;
+rightWall.position.set(roomX1, roomYC, roomZC);
+scene.add(rightWall);
+
+const floorGeo = new THREE.PlaneGeometry(roomW, roomD);
+const floorMat = new THREE.MeshStandardMaterial({ map: createCheckerTexture(), roughness: 0.8 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(0, floorY, roomZC);
+scene.add(floor);
+
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), wallMat);
+ceiling.rotation.x = Math.PI / 2;
+ceiling.position.set(0, floorY + roomH, roomZC);
+scene.add(ceiling);
+
+const cup = makeCup({ height: 24, radiusBottom: 9, radiusTop: 11, wall:0.15, bottom: 0.25 });
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
 
@@ -165,7 +227,7 @@ sphereMeshes.forEach(sphere => {
   });
 });
 
-const planeHeight = 25;
+const planeHeight = 18;
 const planeLength = 25;
 const maxFruitIndex = 5;
 
@@ -200,7 +262,7 @@ function updatePreviewMesh() {
   material.depthWrite = true;
 
   previewMesh = new THREE.Mesh(geometry, material);
-  previewMesh.position.set(0, 25, 0);
+  previewMesh.position.set(0, 18, 0);
   previewMesh.userData.fruitName = fruitName;
   previewMesh.renderOrder = 1;
   scene.add(previewMesh);

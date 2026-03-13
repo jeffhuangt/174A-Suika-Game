@@ -24,24 +24,7 @@ export function setupScene() {
     renderer.toneMappingExposure = 1.1;
     document.body.appendChild( renderer.domElement );
 
-    // add a background color
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-
-    const ctx = canvas.getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, '#aee9ff');
-    grad.addColorStop(1, '#ffffff');
-
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const bgTexture = new THREE.CanvasTexture(canvas);
-    bgTexture.colorSpace = THREE.SRGBColorSpace;
-    bgTexture.needsUpdate = true;
-
-    scene.background = bgTexture;
+    scene.background = new THREE.Color(0xaee9ff);
 
     function createAxisLine(color, start, end) {
         const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
@@ -60,8 +43,15 @@ export function setupScene() {
     // scene.add(zAxis);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    camera.position.set(0, 5, 10); // Where the camera is.
-    controls.target.set(0, 0, 0); // Orbit around world origin
+    camera.position.set(15, 20, 20);
+
+    controls.minDistance = 10;
+    controls.maxDistance = 55;
+    controls.minPolarAngle = 0.3;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+    controls.minAzimuthAngle = -Math.PI / 2;
+    controls.maxAzimuthAngle = Math.PI / 2;
+    controls.enablePan = false;
 
     return { scene, camera, renderer, controls };
 }
