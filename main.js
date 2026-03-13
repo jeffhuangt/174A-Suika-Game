@@ -737,6 +737,13 @@ function loadLevel(type) {
   });
   fallingFruits.length = 0;
 
+  activePowerups.forEach(pu => {
+    if (pu.mesh) scene.remove(pu.mesh);
+  });
+  activePowerups.length = 0;
+
+  storedFruitType = null;
+
   // Reset score and load best for this level
   setLevel(type);
 
@@ -1313,8 +1320,8 @@ function animate() {
     highestFruitPlane.visible = true;
     highestFruitPlane.position.y = maxFruitHeight;
     const t = Math.max(0, Math.min(1, (maxFruitHeight - cup.position.y - cupData.bottom) / (cupData.height - cupData.bottom)));
-    const currRadius = cupData.innerBottomR + t * (cupData.innerTopR - cupData.innerBottomR);
-    highestFruitPlane.scale.setScalar(currRadius / (cupData.innerTopR - 0.2));
+    const currRadius = cupData.innerBottomR + t * (cupData.innerTopR - cupData.innerBottomR) - 0.2;
+    highestFruitPlane.scale.set(currRadius, 1, currRadius);
   } else {
     highestFruitPlane.visible = false;
   }
