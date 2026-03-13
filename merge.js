@@ -11,6 +11,7 @@ export function merge({ scene,
     fruitScores,
     addScore,
     mergeSound,
+    soundEnabled = true,
     eps = 0.08, // tolerance
     popY = 2.5,
 }) {
@@ -78,8 +79,10 @@ export function merge({ scene,
                 addScore(fruitScores[mergedFruitName]);
             }
 
-            mergeSound.currentTime = 0;
-            mergeSound.play().catch(() => { });
+            if (soundEnabled) {
+                mergeSound.currentTime = 0;
+                mergeSound.play().catch(() => { });
+            }
 
             const mid = new THREE.Vector3()
                 .addVectors(first.pos, second.pos)

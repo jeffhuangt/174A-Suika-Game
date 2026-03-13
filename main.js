@@ -53,19 +53,39 @@ let showPlanes = true;
 
 const dropSound = new Audio('sounds/drop.mp3');
 const mergeSound = new Audio('sounds/merge.mp3');
+const bgMusic = new Audio('sounds/background.mp3');
 
 dropSound.volume = 1.0;
 mergeSound.volume = 0.3;
+bgMusic.volume = 0.25;
+bgMusic.loop = true;
+
+let soundEnabled = true;
+let musicStarted = false;
+
+function tryStartMusic() {
+  if (!musicStarted && soundEnabled) {
+    bgMusic.play().catch(() => { });
+    musicStarted = true;
+  }
+}
 
 function playDropSound() {
+  if (!soundEnabled) return;
   dropSound.currentTime = 0;
   dropSound.play().catch(() => { });
 }
 
-// function playMergeSound() {
-//   mergeSound.currentTime = 0;
-//   mergeSound.play().catch(()=>{});
-// }
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  if (soundEnabled) {
+    bgMusic.play().catch(() => { });
+    musicStarted = true;
+  } else {
+    bgMusic.pause();
+  }
+  updateSoundBtnLabel();
+}
 
 document.body.style.margin = '0';
 document.body.style.overflow = 'hidden';
@@ -160,6 +180,55 @@ nextHud.appendChild(nextHighlight2);
 nextHud.appendChild(nextTitle);
 nextHud.appendChild(nextCanvasWrap);
 document.body.appendChild(nextHud);
+
+const soundBtn = document.createElement('button');
+soundBtn.style.position = 'fixed';
+soundBtn.style.bottom = '178px';
+soundBtn.style.left = '20px';
+soundBtn.style.zIndex = '99999';
+soundBtn.style.width = '58px';
+soundBtn.style.height = '58px';
+soundBtn.style.borderRadius = '50%';
+soundBtn.style.border = '2px solid rgba(255,255,255,0.6)';
+soundBtn.style.cursor = 'pointer';
+soundBtn.style.padding = '0';
+soundBtn.style.background = `
+  radial-gradient(circle at 32% 28%,
+    rgba(255,255,255,0.96) 0%,
+    rgba(240,248,255,0.82) 10%,
+    rgba(214,233,248,0.56) 24%,
+    rgba(184,214,236,0.34) 54%,
+    rgba(150,192,224,0.22) 78%,
+    rgba(120,170,210,0.16) 100%)
+`;
+soundBtn.style.boxShadow = `
+  inset 0 4px 10px rgba(255,255,255,0.8),
+  0 4px 12px rgba(40,90,130,0.12)
+`;
+soundBtn.style.display = 'flex';
+soundBtn.style.alignItems = 'center';
+soundBtn.style.justifyContent = 'center';
+soundBtn.style.transition = 'transform 0.15s ease';
+soundBtn.style.outline = 'none';
+soundBtn.style.fontFamily = `'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif`;
+soundBtn.style.fontSize = '26px';
+soundBtn.style.fontWeight = '800';
+soundBtn.style.color = '#145caa';
+soundBtn.style.textShadow = '0 2px 0 rgba(255,255,255,0.8), 0 0 4px rgba(0,0,0,0.18)';
+
+function updateSoundBtnLabel() {
+  soundBtn.textContent = soundEnabled ? '\u266A' : '\u266A';
+  soundBtn.style.opacity = soundEnabled ? '1' : '0.45';
+}
+updateSoundBtnLabel();
+
+soundBtn.addEventListener('pointerenter', () => { soundBtn.style.transform = 'scale(1.1)'; });
+soundBtn.addEventListener('pointerleave', () => { soundBtn.style.transform = 'scale(1)'; });
+soundBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleSound();
+});
+document.body.appendChild(soundBtn);
 
 const legend = document.createElement('div');
 legend.style.position = 'fixed';
@@ -661,6 +730,7 @@ function spawnFruit() {
   lastDropTime = performance.now();
 
   playDropSound();
+  tryStartMusic();
 
   // update next fruit
   currentFruitIndex = nextFruitIndex;
@@ -789,7 +859,7 @@ function animate() {
 
   stepPhysics(fallingFruits, cup, tableTopY, dt);
 
-  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, fruitScores, addScore, mergeSound });
+  merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, fruitScores, addScore, mergeSound, soundEnabled });
 
   if (!gameOver) {
     if (hasFruitAboveOpening()) {
