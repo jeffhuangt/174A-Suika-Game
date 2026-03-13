@@ -12,9 +12,10 @@ const { scene, camera, renderer, controls } = setupScene();
 const { fruitMaterials, faceMaterials, fruitOrder } = createFruitsTextures(renderer);
 
 // create mini camera
-const miniCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-miniCamera.position.set(0, 5, 30);
-miniCamera.lookAt(0, 5, 0);
+const cupOuterRadius = 11.2;
+const miniCamera = new THREE.OrthographicCamera(-cupOuterRadius, cupOuterRadius, cupOuterRadius, -cupOuterRadius, 0.1, 100);
+miniCamera.position.set(0, 35, 0.1);
+miniCamera.lookAt(0, 0, 0);
 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -142,6 +143,17 @@ nextCanvasWrap.style.width = '110px';
 nextCanvasWrap.style.height = '110px';
 nextCanvasWrap.style.borderRadius = '50%';
 nextCanvasWrap.style.overflow = 'hidden';
+
+const cornerMask = document.createElement('div');
+cornerMask.style.position = 'fixed';
+cornerMask.style.bottom = '20px';
+cornerMask.style.right = '20px';
+cornerMask.style.width = '250px';
+cornerMask.style.height = '250px';
+cornerMask.style.pointerEvents = 'none';
+cornerMask.style.zIndex = '99998';
+// We draw a solid color on the corners to turn the square renderer into a circle
+document.body.appendChild(cornerMask);
 
 nextHud.appendChild(nextHighlight1);
 nextHud.appendChild(nextHighlight2);
