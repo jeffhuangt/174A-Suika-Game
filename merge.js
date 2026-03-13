@@ -41,6 +41,7 @@ export function merge({ scene,
             sleepFrames: 0,
             prevPos: pos.clone(),
             angularVel: new THREE.Vector3(0, 0, 0),
+            spawnTime: performance.now(),
         };
     
         fallingFruits.push(fruitObj);

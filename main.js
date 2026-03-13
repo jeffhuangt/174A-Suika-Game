@@ -432,7 +432,6 @@ function updatePreviewMesh() {
   }
   if (previewMesh) {
     scene.remove(previewMesh);
-    previewMesh.geometry.dispose();
     previewMesh.material.dispose();
   }
 
@@ -640,7 +639,6 @@ function resolveFruitFruitCollisions(fruits) {
 function clearPreview() {
   if (previewMesh) {
     scene.remove(previewMesh);
-    previewMesh.geometry.dispose();
     previewMesh.material.dispose();
     previewMesh = null;
   }
@@ -654,11 +652,12 @@ function clearPreview() {
 function hasFruitAboveOpening() {
   const cupData = cup.userData.cup;
   const cupOpeningY = cup.position.y + cupData.height;
+  const now = performance.now();
 
   for (const f of fallingFruits) {
     if (!f.mesh) continue;
+    if (now - f.spawnTime < 1500) continue;
 
-    // any part of the fruit above the rim
     if (f.pos.y + f.radius > cupOpeningY) {
       return true;
     }
@@ -671,7 +670,7 @@ window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
   if (gameOver || !previewMesh) return;
-  if (performance.now() - lastDropTime < 250) return;
+  if (performance.now() - lastDropTime < 700) return;
 
   const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
@@ -703,6 +702,7 @@ function spawnFruit() {
     sleepFrames: 0,
     prevPos: mesh.position.clone(),
     angularVel: new THREE.Vector3(0, 0, 0),
+    spawnTime: performance.now(),
   }
 
   fallingFruits.push(fruitObj);
