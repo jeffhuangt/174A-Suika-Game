@@ -24,11 +24,11 @@ const topLight = new THREE.DirectionalLight(0xffffff, 0.4);
 topLight.position.set(0, 30, 0);
 topLight.target.position.set(0, 0, 0);
 topLight.castShadow = true;
-topLight.shadow.mapSize.width = 2048;
-topLight.shadow.mapSize.height = 2048;
+topLight.shadow.mapSize.width = 4096;
+topLight.shadow.mapSize.height = 4096;
 topLight.shadow.camera.near = 0.5;
-topLight.shadow.camera.far = 50;
-const d = 35;
+topLight.shadow.camera.far = 100;
+const d = 80;
 topLight.shadow.camera.left = -d;
 topLight.shadow.camera.right = d;
 topLight.shadow.camera.top = d;
@@ -69,6 +69,16 @@ function tryStartMusic() {
     musicStarted = true;
   }
 }
+
+function onFirstInteraction() {
+  tryStartMusic();
+  window.removeEventListener('pointerdown', onFirstInteraction);
+  window.removeEventListener('keydown', onFirstInteraction);
+  window.removeEventListener('touchstart', onFirstInteraction);
+}
+window.addEventListener('pointerdown', onFirstInteraction);
+window.addEventListener('keydown', onFirstInteraction);
+window.addEventListener('touchstart', onFirstInteraction);
 
 function playDropSound() {
   if (!soundEnabled) return;
@@ -354,7 +364,7 @@ scene.add(table);
 const floorY = tableTopY - tableThickness;
 const roomWallColor = 0xaee9ff;
 const roomW = 160, roomD = 130, roomH = 70;
-const roomZ0 = -40, roomZ1 = roomZ0 + roomD;
+const roomZ0 = -roomD / 2, roomZ1 = roomD / 2;
 const roomX0 = -roomW / 2, roomX1 = roomW / 2;
 const roomZC = (roomZ0 + roomZ1) / 2;
 const roomYC = floorY + roomH / 2;
@@ -493,7 +503,7 @@ function getDropHitY(mesh, radius, cup, tableTopY) {
 const sphereGeometries = generateSphereGeometries(11, 1, 1.25);
 const sphereMeshes = [];
 let xOffset = 0;
-let zIndex = -25;
+let zIndex = -60;
 sphereGeometries.forEach((geometry, index) => {
   const fruitName = fruitOrder[index] ?? 'no';
   const material = fruitMaterials[fruitName];
