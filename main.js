@@ -370,38 +370,32 @@ const roomYC = floorY + roomH / 2;
 
 const textureLoader = new THREE.TextureLoader();
 
-const backTex = textureLoader.load('textures/back.png');
-backTex.colorSpace = THREE.SRGBColorSpace;
-const frontTex = textureLoader.load('textures/front.png');
-frontTex.colorSpace = THREE.SRGBColorSpace;
 const sidesTex = textureLoader.load('textures/sides.png');
 sidesTex.colorSpace = THREE.SRGBColorSpace;
 const skyTex = textureLoader.load('textures/sky.png');
 skyTex.colorSpace = THREE.SRGBColorSpace;
 
-const backWallMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.9 });
-const frontWallMat = new THREE.MeshStandardMaterial({ map: frontTex, roughness: 0.9 });
-const sideWallMat = new THREE.MeshStandardMaterial({ map: sidesTex, roughness: 0.9 });
+const wallMat = new THREE.MeshStandardMaterial({ map: sidesTex, roughness: 0.9 });
 const skyMat = new THREE.MeshStandardMaterial({ map: skyTex, roughness: 0.9 });
 
-const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), backWallMat);
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
 backWall.position.set(0, roomYC, roomZ0);
 backWall.receiveShadow = true;
 scene.add(backWall);
 
-const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), frontWallMat);
+const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat.clone());
 frontWall.rotation.y = Math.PI;
 frontWall.position.set(0, roomYC, roomZ1);
 frontWall.receiveShadow = true;
 scene.add(frontWall);
 
-const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), sideWallMat);
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat.clone());
 leftWall.rotation.y = Math.PI / 2;
 leftWall.position.set(roomX0, roomYC, roomZC);
 leftWall.receiveShadow = true;
 scene.add(leftWall);
 
-const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), sideWallMat.clone());
+const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat.clone());
 rightWall.rotation.y = -Math.PI / 2;
 rightWall.position.set(roomX1, roomYC, roomZC);
 rightWall.receiveShadow = true;
@@ -420,6 +414,101 @@ ceiling.rotation.x = Math.PI / 2;
 ceiling.position.set(0, floorY + roomH, roomZC);
 ceiling.receiveShadow = true;
 scene.add(ceiling);
+
+function createPlant(x, z) {
+  const group = new THREE.Group();
+
+  const potMat = new THREE.MeshStandardMaterial({ color: 0xc4703f, roughness: 0.85 });
+  const potGeo = new THREE.CylinderGeometry(2.5, 1.8, 4, 16);
+  const pot = new THREE.Mesh(potGeo, potMat);
+  pot.position.y = 2;
+  pot.castShadow = true;
+  pot.receiveShadow = true;
+  group.add(pot);
+
+  const rimGeo = new THREE.TorusGeometry(2.6, 0.35, 8, 16);
+  const rim = new THREE.Mesh(rimGeo, potMat);
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 4;
+  rim.castShadow = true;
+  group.add(rim);
+
+  const dirtMat = new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 1 });
+  const dirt = new THREE.Mesh(new THREE.CircleGeometry(2.4, 16), dirtMat);
+  dirt.rotation.x = -Math.PI / 2;
+  dirt.position.y = 3.95;
+  group.add(dirt);
+
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x4a9e3f, roughness: 0.7 });
+  const bushGeo = new THREE.SphereGeometry(3.5, 12, 10);
+  const bush = new THREE.Mesh(bushGeo, leafMat);
+  bush.position.y = 8;
+  bush.scale.set(1, 1.1, 1);
+  bush.castShadow = true;
+  group.add(bush);
+
+  const topBush = new THREE.Mesh(new THREE.SphereGeometry(2.2, 10, 8), leafMat);
+  topBush.position.y = 11.5;
+  topBush.castShadow = true;
+  group.add(topBush);
+
+  group.position.set(x, floorY, z);
+  scene.add(group);
+  return group;
+}
+
+const lampBulbs = [];
+
+function createLamp(x, z) {
+  const group = new THREE.Group();
+
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.8 });
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(4, 4.5, 1, 16), metalMat);
+  base.position.y = 0.5;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  group.add(base);
+
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30, 8), metalMat);
+  pole.position.y = 15.5;
+  pole.castShadow = true;
+  group.add(pole);
+
+  const shadeMat = new THREE.MeshStandardMaterial({ color: 0xfff5e0, roughness: 0.6, side: THREE.DoubleSide });
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(3, 6, 8, 16, 1, true), shadeMat);
+  shade.position.y = 34;
+  shade.castShadow = true;
+  group.add(shade);
+
+  const topCap = new THREE.Mesh(new THREE.CircleGeometry(3, 16), shadeMat);
+  topCap.rotation.x = -Math.PI / 2;
+  topCap.position.y = 38;
+  group.add(topCap);
+
+  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffeeaa, emissiveIntensity: 0.6 });
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(1.8, 10, 8), bulbMat);
+  bulb.position.y = 33;
+  group.add(bulb);
+
+  const lampLight = new THREE.PointLight(0xffeeaa, 15, 50, 1.5);
+  lampLight.position.y = 33;
+  group.add(lampLight);
+
+  lampBulbs.push({ bulbMat, lampLight });
+
+  group.position.set(x, floorY, z);
+  scene.add(group);
+  return group;
+}
+
+const cornerInset = 6;
+const lampOffset = 8;
+createPlant(roomX0 + cornerInset, roomZ0 + cornerInset);
+createPlant(roomX1 - cornerInset, roomZ0 + cornerInset);
+createPlant(roomX0 + cornerInset, roomZ1 - cornerInset);
+createPlant(roomX1 - cornerInset, roomZ1 - cornerInset);
+createLamp(tableWidth / 2 + lampOffset, 0);
 
 const cup = makeCup({ height: 24, radiusBottom: 9, radiusTop: 11, wall: 0.15, bottom: 0.25 });
 cup.traverse(c => {
@@ -829,6 +918,13 @@ function animate() {
   timer.update();
 
   const dt = Math.min(timer.getDelta(), 1 / 30); //0.033);
+
+  const elapsed = timer.getElapsed();
+  for (const lb of lampBulbs) {
+    const flicker = 0.45 + 0.15 * Math.sin(elapsed * 8.3) + 0.1 * Math.sin(elapsed * 13.7) + 0.05 * Math.sin(elapsed * 23.1);
+    lb.bulbMat.emissiveIntensity = flicker;
+    lb.lampLight.intensity = 10 + 5 * flicker;
+  }
 
   if (previewMesh && previewGuideLine && previewGuideLine.geometry) {
     const previewRadius = previewMesh.geometry.parameters.radius;
