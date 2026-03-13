@@ -12,7 +12,13 @@ const GRAVITY = -25;
 const RESTITUTION_TABLE = 0.25 // bounce on table
 const FRICTION_TABLE = 0.15 //horizontal slowdown on table hit
 const LINEAR_DAMPING = 0.995; // global damping each frame
-const SETTLE_SPEED = 0.08 // below this, fruit is consider to be at rest
+const SETTLE_SPEED = 0.08; // below this, fruit is consider to be at rest
+const FRUIT_COLLIDE_EPS = 0.001; // penetration tolerance for fruit-fruit
+const ANGULAR_DAMPING = 0.97; // when in air, spin decays
+const COLLISION_SPIN = 0.35; // how much collision impulse becomes rotation
+
+const ROLLING_GRIP = 12.0;
+const SPIN_TRANSFER = 0.015;
 
 
 const timer = new THREE.Timer();
@@ -358,9 +364,79 @@ function cupWallCollision(f) {
   v.x -= (1 + 0.25) * vn * nx;
   v.z -= (1 + 0.25) * vn * nz;
 
+  // spin from wall impact (axis = wall normal × up)
+  if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
+  const wallSpin = (Math.abs(vn) * COLLISION_SPIN) / f.radius;
+  f.angularVel.x += nz * wallSpin;
+  f.angularVel.z -= nx * wallSpin;
+
   // wall friction
   v.x *= 0.92;
   v.z *= 0.92;
+}
+
+function resolveFruitFruitCollisions(fruits) {
+  const n = fruits.length;
+  for (let i = 0; i < n; i++) {
+    const a = fruits[i];
+    if (!a.mesh) continue;
+    for (let j = i + 1; j < n; j++) {
+      const b = fruits[j];
+      if (!b.mesh) continue;
+
+      const dx = a.pos.x - b.pos.x;
+      const dy = a.pos.y - b.pos.y;
+      const dz = a.pos.z - b.pos.z;
+      const dist = Math.hypot(dx, dy, dz);
+      const minDist = a.radius + b.radius + FRUIT_COLLIDE_EPS;
+      if (dist >= minDist || dist < 1e-9){
+        continue;
+      }
+
+      const normx = dx / dist;
+      const normy = dy / dist;
+      const normz = dz / dist;
+      // push apart the mass
+      const overlap = minDist - dist;
+      const totalMass = a.mass + b.mass;
+      const ratioA = b.mass / totalMass;
+      const ratioB = a.mass / totalMass;
+      a.pos.x += normx * overlap * ratioA;
+      a.pos.y += normy * overlap * ratioA;
+      a.pos.z += normz * overlap * ratioA;
+      b.pos.x -= normx * overlap * ratioB;
+      b.pos.y -= normy * overlap * ratioB;
+      b.pos.z -= normz * overlap * ratioB;
+
+      // calculate the impulse
+      const vRelX = a.vel.x - b.vel.x;
+      const vRelY = a.vel.y - b.vel.y;
+      const vRelZ = a.vel.z - b.vel.z;
+      const vn = vRelX * normx + vRelY * normy + vRelZ * normz;
+      // no collision
+      if (vn >= 0){
+        continue;
+      }
+
+      const jMag = -(1 + RESTITUTION_FRUIT) * vn / (1 / a.mass + 1 / b.mass);
+      a.vel.x += (jMag / a.mass) * normx;
+      a.vel.y += (jMag / a.mass) * normy;
+      a.vel.z += (jMag / a.mass) * normz;
+      b.vel.x -= (jMag / b.mass) * normx;
+      b.vel.y -= (jMag / b.mass) * normy;
+      b.vel.z -= (jMag / b.mass) * normz;
+
+      // Spin from collision (tangential effect of impact)
+      if (!a.angularVel) a.angularVel = new THREE.Vector3(0, 0, 0);
+      if (!b.angularVel) b.angularVel = new THREE.Vector3(0, 0, 0);
+      const spinA = (jMag / a.mass) * COLLISION_SPIN / a.radius;
+      const spinB = (jMag / b.mass) * COLLISION_SPIN / b.radius;
+      a.angularVel.x += normz * spinA;
+      a.angularVel.z -= normx * spinA;
+      b.angularVel.x -= normz * spinB;
+      b.angularVel.z += normx * spinB;
+    }
+  }
 }
 
 window.addEventListener('pointermove', onPointerMove);
@@ -370,7 +446,7 @@ function spawnFruit() {
   if(activeFruit && !fallingFruits.includes(activeFruit)) {
     activeFruit = null;
   }
-  if (activeFruit && !activeFruit.isSettled) return;
+  // if (activeFruit && !activeFruit.isSettled) return;
 
   const fruitIndex = nextFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
@@ -397,6 +473,8 @@ function spawnFruit() {
     vel: new THREE.Vector3(0, 0, 0),
     mass: radius * radius,
     isSettled: false,
+    angularVel: new THREE.Vector3(0, 0, 0),
+    quat: new THREE.Quaternion(),
   }
 
   fallingFruits.push(fruitObj);
@@ -473,6 +551,19 @@ function animate() {
     // settle on cup bottom first if over cup opening
     if (overCupOpening && f.pos.y - f.radius <= cupInnerBottomY) {
       f.pos.y = cupInnerBottomY + f.radius  + 0.001;
+
+      // Enforce rolling constraint gradually (no-slip friction)
+      if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
+      // Target ω for pure rolling: ω = (n × v) / r, n = (0,1,0)
+      const targetOmegaX = f.vel.z / f.radius;
+      const targetOmegaZ = -f.vel.x / f.radius;
+      const grip = Math.min(1.0, ROLLING_GRIP * dt);
+      f.angularVel.x += (targetOmegaX - f.angularVel.x) * grip;
+      f.angularVel.z += (targetOmegaZ - f.angularVel.z) * grip;
+      // Spin-to-velocity: surface spin nudges the fruit forward
+      f.vel.x += (f.angularVel.z * -f.radius - f.vel.x) * SPIN_TRANSFER;
+      f.vel.z += (f.angularVel.x *  f.radius - f.vel.z) * SPIN_TRANSFER;
+      f.angularVel.y *= 0.92; // bleed off top-spin gradually
       
       if (f.vel.y < 0) {
         f.vel.y = -f.vel.y * RESTITUTION_TABLE;
@@ -491,6 +582,12 @@ function animate() {
       }
     } else if (f.pos.y - f.radius <= tableTopY) { // collide with table top
       f.pos.y = tableTopY + f.radius + 0.001;
+
+      // Set rolling from velocity immediately (before bounce/friction) so no delay
+      if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
+      f.angularVel.x = f.vel.z / f.radius;
+      f.angularVel.y = 0;
+      f.angularVel.z = -f.vel.x / f.radius;
       
       if (f.vel.y < 0) {
         f.vel.y = -f.vel.y * RESTITUTION_TABLE;
@@ -509,12 +606,32 @@ function animate() {
       }
     } else {
       f.isSettled = false;
+      // In air: damp angular velocity (no rolling constraint)
+      if (f.angularVel) f.angularVel.multiplyScalar(ANGULAR_DAMPING);
     }
 
     // damping
     f.vel.multiplyScalar(LINEAR_DAMPING);
 
     f.mesh.position.copy(f.pos);
+
+    // Quaternion-based rotation — no gimbal lock
+    if (!f.angularVel) f.angularVel = new THREE.Vector3(0, 0, 0);
+    if (!f.quat) { f.quat = new THREE.Quaternion(); f.quat.copy(f.mesh.quaternion); }
+    const angle = f.angularVel.length() * dt;
+    if (angle > 1e-7) {
+      const axis = f.angularVel.clone().normalize();
+      const deltaQ = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+      f.quat.premultiply(deltaQ);
+      f.quat.normalize();
+      f.mesh.quaternion.copy(f.quat);
+    }
+
+    const onGround = (overCupOpening && f.pos.y - f.radius <= cupInnerBottomY + 0.01)
+                   || (f.pos.y - f.radius <= tableTopY + 0.01);
+    if (!onGround) {
+      f.angularVel.multiplyScalar(ANGULAR_DAMPING); // free-spin decay in air
+    }
   }
 
   merge({ scene, fallingFruits, fruitOrder, sphereGeometries, fruitMaterials, faceMaterials, createFaceDecals, });
