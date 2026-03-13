@@ -47,6 +47,7 @@ const fallingFruits = [];
 let gameOver = false;
 let topOutTime = 0;
 let lastDropTime = 0;
+let spawnDelayEnabled = true;
 
 const dropSound = new Audio('sounds/drop.mp3');
 const mergeSound = new Audio('sounds/merge.mp3');
@@ -545,7 +546,7 @@ window.addEventListener('pointermove', onPointerMove);
 
 function spawnFruit() {
   if (gameOver || !previewMesh) return;
-  if (performance.now() - lastDropTime < 700) return;
+  if (spawnDelayEnabled && (performance.now() - lastDropTime < 700)) return;
 
   const fruitIndex = currentFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
@@ -613,6 +614,9 @@ window.addEventListener('keydown', (event) => {
   const h = 15;
 
   switch (event.key.toLowerCase()) {
+    case 'd':
+      spawnDelayEnabled = !spawnDelayEnabled;
+      break;
     case 't':
       camera.position.set(0, 45, 0.1); // top view
       controls.update();
