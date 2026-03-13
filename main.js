@@ -4,7 +4,7 @@ import { createFruitsTextures } from './fruitTextures.js';
 import { createFaceDecals } from './faceDecals.js';
 import { merge } from './merge.js';
 import { TOP_OUT_LIMIT } from './constants.js';
-import { fruitScores, addScore } from './ui.js';
+import { fruitScores, addScore, setLevel } from './ui.js';
 import { makeClassicCup } from './levels/classic.js';
 import { makeBowlCup } from './levels/bowl.js';
 import { makeEarthquakeCup } from './levels/shake.js';
@@ -648,10 +648,8 @@ function loadLevel(type) {
   });
   fallingFruits.length = 0;
   
-  // Reset score
-  const scoreKeys = Object.keys(fruitScores);
-  scoreKeys.forEach(k => delete fruitScores[k]);
-  addScore(0);
+  // Reset score and load best for this level
+  setLevel(type);
 
   // Reset shake state
   shakePrevX = 0;
