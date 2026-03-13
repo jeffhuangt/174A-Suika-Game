@@ -48,6 +48,7 @@ let gameOver = false;
 let topOutTime = 0;
 let lastDropTime = 0;
 let spawnDelayEnabled = true;
+let showPlanes = true;
 
 const dropSound = new Audio('sounds/drop.mp3');
 const mergeSound = new Audio('sounds/merge.mp3');
@@ -147,6 +148,38 @@ nextHud.appendChild(nextHighlight2);
 nextHud.appendChild(nextTitle);
 nextHud.appendChild(nextCanvasWrap);
 document.body.appendChild(nextHud);
+
+const legend = document.createElement('div');
+legend.style.position = 'fixed';
+legend.style.bottom = '20px';
+legend.style.left = '20px';
+legend.style.color = '#145caa';
+legend.style.fontFamily = `'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif`;
+legend.style.background = `
+  radial-gradient(circle at 10% 10%,
+    rgba(255,255,255,0.95) 0%,
+    rgba(240,248,255,0.85) 40%,
+    rgba(214,233,248,0.7) 100%)
+`;
+legend.style.padding = '12px 18px';
+legend.style.borderRadius = '12px';
+legend.style.boxShadow = `
+  inset 0 4px 10px rgba(255,255,255,0.8),
+  0 6px 16px rgba(40,90,130,0.15)
+`;
+legend.style.border = '2px solid rgba(255,255,255,0.6)';
+legend.style.zIndex = '99999';
+legend.style.pointerEvents = 'none';
+legend.innerHTML = `
+  <div style="font-weight: 800; font-size: 16px; margin-bottom: 8px; border-bottom: 2px solid rgba(20,92,170,0.2); padding-bottom: 4px;">Controls</div>
+  <div style="font-size: 14px; line-height: 1.6;">
+    <b style="color: #0b3d75;">Space</b>: Drop fruit<br>
+    <b style="color: #0b3d75;">t, f, b, l, r</b>: Snap Camera<br>
+    <b style="color: #0b3d75;">d</b>: Toggle drop delay<br>
+    <b style="color: #0b3d75;">p</b>: Toggle indicator planes
+  </div>
+`;
+document.body.appendChild(legend);
 
 const nextScene = new THREE.Scene();
 
@@ -292,6 +325,35 @@ cup.traverse(c => {
 });
 cup.position.set(0, tableTopY + 0.01, 0); // x = -50 before
 scene.add(cup);
+
+const planeGeo = new THREE.CircleGeometry(cup.userData.cup.innerTopR - 0.2, 64);
+planeGeo.rotateX(-Math.PI / 2);
+
+const highestMat = new THREE.MeshBasicMaterial({
+  color: 0xffff00,
+  transparent: true,
+  opacity: 0.2,
+  side: THREE.DoubleSide,
+  depthWrite: false
+});
+const highestFruitPlane = new THREE.Mesh(planeGeo, highestMat);
+highestFruitPlane.position.x = cup.position.x;
+highestFruitPlane.position.z = cup.position.z;
+highestFruitPlane.position.y = cup.position.y + cup.userData.cup.bottom;
+scene.add(highestFruitPlane);
+
+const dangerMat = new THREE.MeshBasicMaterial({
+  color: 0xff0000,
+  transparent: true,
+  opacity: 0.0,
+  side: THREE.DoubleSide,
+  depthWrite: false
+});
+const dangerPlane = new THREE.Mesh(planeGeo, dangerMat);
+dangerPlane.position.x = cup.position.x;
+dangerPlane.position.z = cup.position.z;
+dangerPlane.position.y = cup.position.y + cup.userData.cup.height;
+scene.add(dangerPlane);
 
 function createDropGuide() {
   const geometry = new THREE.BufferGeometry().setFromPoints([
@@ -617,6 +679,9 @@ window.addEventListener('keydown', (event) => {
     case 'd':
       spawnDelayEnabled = !spawnDelayEnabled;
       break;
+    case 'p':
+      showPlanes = !showPlanes;
+      break;
     case 't':
       camera.position.set(0, 45, 0.1); // top view
       controls.update();
@@ -651,6 +716,8 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+let blinkTime = 0;
+
 function animate() {
 
   timer.update();
@@ -675,6 +742,37 @@ function animate() {
 
     previewGuideLine.geometry.setFromPoints([start, end]);
     previewGuideLine.computeLineDistances();
+  }
+
+  let maxFruitHeight = cup.position.y + cup.userData.cup.bottom; // baseline
+  const cupData = cup.userData.cup;
+  const cupOpeningY = cup.position.y + cupData.height;
+  const cupMaxSafeWaitY = cup.position.y + cupData.bottom + (cupData.height - cupData.bottom) * 0.80; // 4/5ths height
+  fallingFruits.forEach((f) => {
+    if (!f.mesh) return;
+    const topY = f.pos.y + f.radius;
+    if (topY > maxFruitHeight) {
+      maxFruitHeight = topY;
+    }
+  });
+
+  if (showPlanes && maxFruitHeight > cup.position.y + cupData.bottom + 0.5) {
+    highestFruitPlane.visible = true;
+    highestFruitPlane.position.y = maxFruitHeight;
+    const t = Math.max(0, Math.min(1, (maxFruitHeight - cup.position.y - cupData.bottom) / (cupData.height - cupData.bottom)));
+    const currRadius = cupData.innerBottomR + t * (cupData.innerTopR - cupData.innerBottomR);
+    highestFruitPlane.scale.setScalar(currRadius / (cupData.innerTopR - 0.2));
+  } else {
+    highestFruitPlane.visible = false;
+  }
+
+  if (showPlanes && maxFruitHeight >= cupMaxSafeWaitY) {
+    blinkTime += dt * 5;
+    const alpha = (Math.sin(blinkTime) + 1.0) / 2.0 * 0.8 + 0.1;
+    dangerMat.opacity = alpha;
+  } else {
+    blinkTime = 0;
+    dangerMat.opacity = 0;
   }
 
   stepPhysics(fallingFruits, cup, tableTopY, dt);
