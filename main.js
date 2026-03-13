@@ -6,7 +6,7 @@ import { merge } from './merge.js';
 import { TOP_OUT_LIMIT } from './constants.js';
 import { fruitScores, addScore, setLevel } from './ui.js';
 import { makeClassicCup } from './levels/classic.js';
-import { makeBowlCup } from './levels/bowl.js';
+import { makeFluidCup } from './levels/fluid.js';
 import { makeEarthquakeCup } from './levels/shake.js';
 import { stepPhysics, isFruitSupported } from './physics.js';
 
@@ -246,7 +246,7 @@ document.body.appendChild(soundBtn);
 const levelSelector = document.createElement('select');
 levelSelector.style.position = 'fixed';
 levelSelector.style.top = '20px';
-levelSelector.style.left = '20px';
+levelSelector.style.left = '205px';
 levelSelector.style.zIndex = '99999';
 levelSelector.style.padding = '8px 16px';
 levelSelector.style.borderRadius = '12px';
@@ -273,7 +273,7 @@ optClassic.value = 'classic';
 optClassic.textContent = 'Classic Cup';
 const optBowl = document.createElement('option');
 optBowl.value = 'bowl';
-optBowl.textContent = 'Bowl Shape';
+optBowl.textContent = 'Flood';
 const optEarthquake = document.createElement('option');
 optEarthquake.value = 'earthquake';
 optEarthquake.textContent = 'Earthquake';
@@ -369,7 +369,7 @@ function createCheckerTexture() {
   const tiles = 512 / size;
   for (let row = 0; row < tiles; row++) {
     for (let col = 0; col < tiles; col++) {
-      ctx.fillStyle = (row + col) % 2 === 0 ? '#f0ddc5' : '#dfc0a0';
+      ctx.fillStyle = (row + col) % 2 === 0 ? '#d68d33' : '#eee098';
       ctx.fillRect(col * size, row * size, size, size);
     }
   }
@@ -382,8 +382,8 @@ function createCheckerTexture() {
   return tex;
 }
 
-const tableWidth = 60;
-const tableDepth = 30;
+const tableWidth = 130;
+const tableDepth = 110;
 const tableThickness = 1.2;
 
 const tableGeo = new THREE.BoxGeometry(
@@ -393,7 +393,7 @@ const tableGeo = new THREE.BoxGeometry(
 );
 
 const tableMat = new THREE.MeshStandardMaterial({
-  color: 0xf5d7b2,
+  color: 0xeee098,
   roughness: 0.85,
   metalness: 0.0,
 });
@@ -417,32 +417,41 @@ const roomYC = floorY + roomH / 2;
 
 const textureLoader = new THREE.TextureLoader();
 
-const sidesTex = textureLoader.load('textures/sides.png');
-sidesTex.colorSpace = THREE.SRGBColorSpace;
-const skyTex = textureLoader.load('textures/sky.png');
-skyTex.colorSpace = THREE.SRGBColorSpace;
+const side1Tex = textureLoader.load('textures/kitchen_wall_2.png');
+side1Tex.colorSpace = THREE.SRGBColorSpace;
+const side2Tex = textureLoader.load('textures/kitchen_wall_1.png');
+side2Tex.colorSpace = THREE.SRGBColorSpace;
+const side3Tex = textureLoader.load('textures/kitchen_wall_3.png');
+side3Tex.colorSpace = THREE.SRGBColorSpace;
+const side4Tex = textureLoader.load('textures/kitchen_wall_4.png');
+side4Tex.colorSpace = THREE.SRGBColorSpace;
+const ceilTex = textureLoader.load('textures/ceil.png');
+ceilTex.colorSpace = THREE.SRGBColorSpace;
 
-const wallMat = new THREE.MeshStandardMaterial({ map: sidesTex, roughness: 0.9 });
-const skyMat = new THREE.MeshStandardMaterial({ map: skyTex, roughness: 0.9 });
+const wall1Mat = new THREE.MeshStandardMaterial({ map: side1Tex, roughness: 0.9 });
+const wall2Mat = new THREE.MeshStandardMaterial({ map: side2Tex, roughness: 0.9 });
+const wall3Mat = new THREE.MeshStandardMaterial({ map: side3Tex, roughness: 0.9 });
+const wall4Mat = new THREE.MeshStandardMaterial({ map: side4Tex, roughness: 0.9 });
+const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTex, roughness: 0.9 });
 
-const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wall1Mat);
 backWall.position.set(0, roomYC, roomZ0);
 backWall.receiveShadow = true;
 scene.add(backWall);
 
-const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat.clone());
+const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wall2Mat);
 frontWall.rotation.y = Math.PI;
 frontWall.position.set(0, roomYC, roomZ1);
 frontWall.receiveShadow = true;
 scene.add(frontWall);
 
-const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat.clone());
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wall3Mat);
 leftWall.rotation.y = Math.PI / 2;
 leftWall.position.set(roomX0, roomYC, roomZC);
 leftWall.receiveShadow = true;
 scene.add(leftWall);
 
-const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat.clone());
+const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wall4Mat);
 rightWall.rotation.y = -Math.PI / 2;
 rightWall.position.set(roomX1, roomYC, roomZC);
 rightWall.receiveShadow = true;
@@ -456,7 +465,7 @@ floor.position.set(0, floorY, roomZC);
 floor.receiveShadow = true;
 scene.add(floor);
 
-const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), skyMat);
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), ceilMat);
 ceiling.rotation.x = Math.PI / 2;
 ceiling.position.set(0, floorY + roomH, roomZC);
 ceiling.receiveShadow = true;
@@ -625,7 +634,7 @@ function loadLevel(type) {
   
   // Create new cup
   if (type === 'bowl') {
-    cup = makeBowlCup();
+    cup = makeFluidCup();
   } else if (type === 'earthquake') {
     cup = makeEarthquakeCup();
   } else {
@@ -891,7 +900,7 @@ function clearPreview() {
 
 function hasFruitAboveOpening() {
   const cupData = cup.userData.cup;
-  const cupOpeningY = cup.position.y + cupData.height;
+  const cupOpeningY = cup.position.y + (cupData.height - cupData.bottom);
   const now = performance.now();
 
   for (const f of fallingFruits) {
@@ -1105,7 +1114,7 @@ function animate() {
 
   let maxFruitHeight = cup.position.y + cup.userData.cup.bottom; // baseline
   const cupData = cup.userData.cup;
-  const cupOpeningY = cup.position.y + cupData.height;
+  const cupOpeningY = cup.position.y + (cupData.height - cupData.bottom);
   const cupMaxSafeWaitY = cup.position.y + cupData.bottom + (cupData.height - cupData.bottom) * 0.80; // 4/5ths height
   fallingFruits.forEach((f) => {
     if (!f.mesh) return;

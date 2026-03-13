@@ -158,6 +158,12 @@ export function isFruitSupported(f, fruits, cup, tableTopY) {
   if (f.pos.y - f.radius <= tableTopY + 0.08) return true;
   if (overCupOpening && f.pos.y - f.radius <= cupInnerBottomY + 0.08) return true;
 
+  const water = cup.userData.water;
+  if (water && water.enabled) {
+    const waterY = cup.position.y + water.levelYLocal;
+    if (f.pos.y - f.radius < waterY) return true;
+  }
+
   for (const other of fruits) {
     if (other === f || !other.mesh) continue;
 
@@ -190,8 +196,33 @@ export function stepPhysics(fallingFruits, cup, tableTopY, dt) {
 
   for (const f of fallingFruits) {
     if (!f.mesh || f.isSettled) continue;
+
+    const prevBottom = f.pos.y - f.radius;
+
+    // gravity
     f.vel.y += GRAVITY * dt;
+
+    // buoyancy + water drag
+    applyWaterForces(f, cup, dt);
+
+    // integrate position
     f.pos.addScaledVector(f.vel, dt);
+
+    // detect water entry for ripple / splash
+    const water = cup.userData.water;
+    if (water && water.enabled) {
+      const waterY = cup.position.y + water.levelYLocal;
+      const nowBottom = f.pos.y - f.radius;
+
+      if (
+        prevBottom > waterY &&
+        nowBottom <= waterY &&
+        Math.abs(f.vel.y) > water.splashSpeedThreshold
+      ) {
+        f.justHitWater = true;
+        f.waterImpactSpeed = Math.abs(f.vel.y);
+      }
+    }
   }
 
   // run collision resolution multiple times so piled-up fruits settle properly
@@ -244,11 +275,18 @@ export function stepPhysics(fallingFruits, cup, tableTopY, dt) {
     if (onCupFloor) {
       f.pos.y = cupInnerBottomY + f.radius + 0.001;
 
-      if (f.vel.y < 0) f.vel.y = -f.vel.y * RESTITUTION_TABLE;
+      const water = cup.userData.water;
+      const waterY = water && water.enabled ? cup.position.y + water.levelYLocal : -Infinity;
+      const underwater = f.pos.y - f.radius < waterY;
 
+      if (f.vel.y < 0) {
+        f.vel.y = -f.vel.y * (underwater ? 0.08 : RESTITUTION_TABLE);
+      }
+
+      const frictionScale = underwater ? 0.06 : FRICTION_TABLE;
       const hSpeed = Math.hypot(f.vel.x, f.vel.z);
       if (hSpeed > 1e-9) {
-        const deltaV = FRICTION_TABLE * Math.abs(GRAVITY) * dt;
+        const deltaV = frictionScale * Math.abs(GRAVITY) * dt;
         const reduce = Math.min(deltaV, hSpeed);
         f.vel.x -= (f.vel.x / hSpeed) * reduce;
         f.vel.z -= (f.vel.z / hSpeed) * reduce;
@@ -338,4 +376,43 @@ export function stepPhysics(fallingFruits, cup, tableTopY, dt) {
 
     f.prevPos.copy(f.pos);
   }
+}
+
+function clamp01(x) {
+  return Math.max(0, Math.min(1, x));
+}
+
+function applyWaterForces(f, cup, dt) {
+  const water = cup.userData.water;
+  if (!water || !water.enabled) return false;
+
+  const waterY = cup.position.y + water.levelYLocal;
+
+  const fruitBottom = f.pos.y - f.radius;
+  const fruitTop = f.pos.y + f.radius;
+
+  if (fruitBottom >= waterY) return false;
+  if (fruitTop <= waterY - 2 * f.radius) return true;
+
+  const submergedDepth = Math.min(waterY - fruitBottom, 2 * f.radius);
+  const submerge = clamp01(submergedDepth / (2 * f.radius));
+
+  if (submerge <= 0) return false;
+
+  const buoyancyAccel = 40 * water.density * submerge / Math.max(f.mass, 0.001);
+  f.vel.y += buoyancyAccel * dt;
+
+  const linearDrag = Math.max(0, 1 - water.drag * submerge * dt);
+  f.vel.multiplyScalar(linearDrag);
+
+  if (f.angularVel) {
+    const angularDrag = Math.max(0, 1 - water.angularDrag * submerge * dt);
+    f.angularVel.multiplyScalar(angularDrag);
+  }
+
+  if (Math.abs(fruitBottom - waterY) < f.radius * 0.4) {
+    f.vel.y *= Math.max(0, 1 - water.surfaceDamping * dt);
+  }
+
+  return true;
 }
