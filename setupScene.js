@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 export function setupScene() {
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
@@ -17,12 +17,12 @@ export function setupScene() {
     scene.add(rim);
 
     const renderer = new THREE.WebGLRenderer();
-    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.physicallyCorrectLights = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
-    document.body.appendChild( renderer.domElement );
+    document.body.appendChild(renderer.domElement);
 
     scene.background = new THREE.Color(0xaee9ff);
 
@@ -47,10 +47,8 @@ export function setupScene() {
 
     controls.minDistance = 10;
     controls.maxDistance = 55;
-    controls.minPolarAngle = 0.3;
+    controls.minPolarAngle = 0.0;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    controls.minAzimuthAngle = -Math.PI * 275 / 360;
-    controls.maxAzimuthAngle = Math.PI * 275 / 360;
     controls.enablePan = false;
 
     return { scene, camera, renderer, controls };

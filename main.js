@@ -603,6 +603,32 @@ function spawnFruit() {
 
 window.addEventListener('keydown', (event) => {
   if (event.code === 'Space') spawnFruit();
+
+  const dist = 35;
+  const h = 15;
+
+  switch (event.key.toLowerCase()) {
+    case 't':
+      camera.position.set(0, 45, 0.1); // top view
+      controls.update();
+      break;
+    case 'f':
+      camera.position.set(0, h, dist); // front view
+      controls.update();
+      break;
+    case 'b':
+      camera.position.set(0, h, -dist); // back view
+      controls.update();
+      break;
+    case 'l':
+      camera.position.set(-dist, h, 0); // left view
+      controls.update();
+      break;
+    case 'r':
+      camera.position.set(dist, h, 0); // right view
+      controls.update();
+      break;
+  }
 });
 
 window.addEventListener('resize', () => {
