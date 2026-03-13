@@ -345,6 +345,7 @@ const pointer = new THREE.Vector2();
 
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeHeight);
 
+let currentFruitIndex = Math.floor(Math.random() * maxFruitIndex);
 let nextFruitIndex = Math.floor(Math.random() * maxFruitIndex);
 let previewMesh = null;
 let previewGuideLine = null;
@@ -407,8 +408,8 @@ function updatePreviewMesh() {
     scene.remove(previewGuideLine);
   }
 
-  const fruitName = fruitOrder[nextFruitIndex];
-  const geometry = sphereGeometries[nextFruitIndex];
+  const fruitName = fruitOrder[currentFruitIndex];
+  const geometry = sphereGeometries[currentFruitIndex];
   const material = fruitMaterials[fruitName].clone();
   material.transparent = true;
   material.opacity = 0.99;
@@ -500,7 +501,7 @@ function spawnFruit() {
   if (gameOver || !previewMesh) return;
   if (performance.now() - lastDropTime < 700) return;
 
-  const fruitIndex = nextFruitIndex;
+  const fruitIndex = currentFruitIndex;
   const fruitName = fruitOrder[fruitIndex];
 
   const geometry = sphereGeometries[fruitIndex];
@@ -539,7 +540,9 @@ function spawnFruit() {
   playDropSound();
 
   // update next fruit
+  currentFruitIndex = nextFruitIndex;
   nextFruitIndex = Math.floor(Math.random() * 5);
+  
   updatePreviewMesh();
   updateNextFruitHud();
 
