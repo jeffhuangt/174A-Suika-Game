@@ -49,8 +49,8 @@ export function setupScene() {
     controls.maxDistance = 55;
     controls.minPolarAngle = 0.3;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    controls.minAzimuthAngle = -Math.PI / 2;
-    controls.maxAzimuthAngle = Math.PI / 2;
+    controls.minAzimuthAngle = -Math.PI * 275 / 360;
+    controls.maxAzimuthAngle = Math.PI * 275 / 360;
     controls.enablePan = false;
 
     return { scene, camera, renderer, controls };
