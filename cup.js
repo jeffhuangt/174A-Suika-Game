@@ -80,12 +80,12 @@ export function makeCup({
   cupGeometry.computeVertexNormals();
 
   const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, //0xe8f6ff,
+    color: 0xffffff,
     transmission: 1.0,
-    thickness: wall,
+    thickness: 0.02,
     roughness: 0.02,
     metalness: 0.0,
-    ior: 1.5,
+    ior: 1.05,
     transparent: true,
     clearcoat: 1.0,
     clearcoatRoughness: 0.01,
