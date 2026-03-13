@@ -37,6 +37,115 @@ function playDropSound() {
 document.body.style.margin = '0';
 document.body.style.overflow = 'hidden';
 
+const nextHud = document.createElement('div');
+nextHud.style.position = 'fixed';
+nextHud.style.top = '18px';
+nextHud.style.right = '18px';
+nextHud.style.width = '170px';
+nextHud.style.height = '170px';
+nextHud.style.borderRadius = '50%';
+nextHud.style.zIndex = '99999';
+nextHud.style.pointerEvents = 'none';
+nextHud.style.display = 'flex';
+nextHud.style.flexDirection = 'column';
+nextHud.style.alignItems = 'center';
+nextHud.style.justifyContent = 'center';
+nextHud.style.fontFamily = `'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif`;
+nextHud.style.color = '#145caa';
+nextHud.style.background = `
+  radial-gradient(circle at 32% 28%,
+    rgba(255,255,255,0.96) 0%,
+    rgba(240,248,255,0.82) 10%,
+    rgba(214,233,248,0.56) 24%,
+    rgba(184,214,236,0.34) 54%,
+    rgba(150,192,224,0.22) 78%,
+    rgba(120,170,210,0.16) 100%)
+`;
+nextHud.style.border = '3px solid rgba(255,255,255,0.55)';
+nextHud.style.boxShadow = `
+  inset 0 10px 18px rgba(255,255,255,0.72),
+  inset 0 -10px 18px rgba(90,140,185,0.18),
+  0 4px 12px rgba(40,90,130,0.12)
+`;
+
+const nextHighlight1 = document.createElement('div');
+nextHighlight1.style.position = 'absolute';
+nextHighlight1.style.width = '34px';
+nextHighlight1.style.height = '20px';
+nextHighlight1.style.top = '26px';
+nextHighlight1.style.left = '24px';
+nextHighlight1.style.borderRadius = '50%';
+nextHighlight1.style.background = 'rgba(255,255,255,0.78)';
+nextHighlight1.style.transform = 'rotate(-28deg)';
+nextHighlight1.style.filter = 'blur(1px)';
+
+const nextHighlight2 = document.createElement('div');
+nextHighlight2.style.position = 'absolute';
+nextHighlight2.style.width = '24px';
+nextHighlight2.style.height = '14px';
+nextHighlight2.style.right = '24px';
+nextHighlight2.style.bottom = '28px';
+nextHighlight2.style.borderRadius = '50%';
+nextHighlight2.style.background = 'rgba(255,255,255,0.62)';
+nextHighlight2.style.transform = 'rotate(28deg)';
+nextHighlight2.style.filter = 'blur(1px)';
+
+const nextTitle = document.createElement('div');
+nextTitle.textContent = 'Next';
+nextTitle.style.position = 'absolute';
+nextTitle.style.top = '12px';
+nextTitle.style.left = '50%';
+nextTitle.style.transform = 'translateX(-50%)';
+nextTitle.style.fontSize = '26px';
+nextTitle.style.fontWeight = '800';
+nextTitle.style.lineHeight = '1';
+nextTitle.style.textShadow = '0 2px 0 rgba(255,255,255,0.8), 0 0 4px rgba(0,0,0,0.18)';
+
+const nextCanvasWrap = document.createElement('div');
+nextCanvasWrap.style.position = 'absolute';
+nextCanvasWrap.style.left = '50%';
+nextCanvasWrap.style.top = '54%';
+nextCanvasWrap.style.transform = 'translate(-50%, -50%)';
+nextCanvasWrap.style.width = '110px';
+nextCanvasWrap.style.height = '110px';
+nextCanvasWrap.style.borderRadius = '50%';
+nextCanvasWrap.style.overflow = 'hidden';
+
+nextHud.appendChild(nextHighlight1);
+nextHud.appendChild(nextHighlight2);
+nextHud.appendChild(nextTitle);
+nextHud.appendChild(nextCanvasWrap);
+document.body.appendChild(nextHud);
+
+const nextScene = new THREE.Scene();
+
+const nextCamera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+nextCamera.position.set(0, 0, 6);
+
+const nextRenderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: true,
+});
+nextRenderer.setSize(110, 110);
+nextRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+nextRenderer.outputColorSpace = THREE.SRGBColorSpace;
+nextRenderer.setClearColor(0x000000, 0);
+nextScene.environment = scene.environment;
+nextCanvasWrap.appendChild(nextRenderer.domElement);
+
+const nextAmbient = new THREE.AmbientLight(0xffffff, 0.6);
+nextScene.add(nextAmbient);
+
+const nextDir = new THREE.DirectionalLight(0xffffff, 2.2);
+nextDir.position.set(3, 4, 5);
+nextScene.add(nextDir);
+
+const nextRim = new THREE.DirectionalLight(0xffffff, 1.3);
+nextRim.position.set(-4, 2, 3);
+nextScene.add(nextRim);
+
+let nextFruitMesh = null;
+
 function generateSphereGeometries(numSpheres, radius, scale) {
   const geometries = [];
   let curRadius = radius;
@@ -240,6 +349,50 @@ let nextFruitIndex = Math.floor(Math.random() * maxFruitIndex);
 let previewMesh = null;
 let previewGuideLine = null;
 
+function updateNextFruitHud() {
+  if (nextFruitMesh) {
+    nextScene.remove(nextFruitMesh);
+    nextFruitMesh.traverse(obj => {
+      if (!obj.isMesh) return;
+      if (obj !== nextFruitMesh && obj.geometry) obj.geometry.dispose();
+      if (obj.material && obj.material !== nextFruitMesh.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(m => m.dispose());
+        } else {
+          obj.material.dispose();
+        }
+      }
+    });
+    nextFruitMesh = null;
+  }
+
+  if (gameOver) return;
+
+  const fruitName = fruitOrder[nextFruitIndex];
+  const geometry = sphereGeometries[nextFruitIndex];
+  const material = fruitMaterials[fruitName].clone();
+  material.transparent = false;
+  material.depthWrite = true;
+
+  nextFruitMesh = new THREE.Mesh(geometry, material);
+  nextFruitMesh.userData.fruitName = fruitName;
+  nextScene.add(nextFruitMesh);
+
+  createFaceDecals(nextFruitMesh, fruitName, faceMaterials, { yaw: 0 });
+
+  // progressively larger HUD sizes per fruit
+  const hudScaleByIndex = [
+    0.9, // cherry
+    0.9, // strawberry
+    0.9, // grape
+    0.9,  // orange
+    0.9, // persimmon
+  ];
+
+  const scale = hudScaleByIndex[nextFruitIndex] ?? 1.0;
+  nextFruitMesh.scale.setScalar(scale);
+}
+
 function updatePreviewMesh() {
   if (gameOver) {
     clearPreview();
@@ -273,6 +426,7 @@ function updatePreviewMesh() {
 }
 
 updatePreviewMesh();
+updateNextFruitHud();
 
 function clampPreviewToCup(target, previewRadius) {
   const cupData = cup.userData.cup;
@@ -314,6 +468,8 @@ function clearPreview() {
     previewMesh.material.dispose();
     previewMesh = null;
   }
+
+  updateNextFruitHud();
 
   if (previewGuideLine) {
     scene.remove(previewGuideLine);
@@ -385,6 +541,7 @@ function spawnFruit() {
   // update next fruit
   nextFruitIndex = Math.floor(Math.random() * 5);
   updatePreviewMesh();
+  updateNextFruitHud();
 
   // snap to pointer
   raycaster.setFromCamera(pointer, camera);
@@ -400,6 +557,13 @@ function spawnFruit() {
 
 window.addEventListener('keydown', (event) => {
   if (event.code === 'Space') spawnFruit();
+});
+
+window.addEventListener('resize', () => {
+  nextRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  nextRenderer.setSize(110, 110);
+  nextCamera.aspect = 1;
+  nextCamera.updateProjectionMatrix();
 });
 
 function animate() {
@@ -443,6 +607,12 @@ function animate() {
     } else {
       topOutTime = 0;
     }
+  }
+
+  if (nextFruitMesh) {
+    nextFruitMesh.rotation.y += 0.01;
+    nextFruitMesh.rotation.x = -0.18;
+    nextRenderer.render(nextScene, nextCamera);
   }
 
   controls.update();
